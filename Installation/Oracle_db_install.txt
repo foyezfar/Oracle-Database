@@ -1,0 +1,223 @@
+[root@localhost ~]# hostnamectl set-hostname 'node1'
+hostnamectl
+
+vim /etc/hosts
+192.168.0.101 node1 node1
+
+vim /etc/sysctl.conf
+
+fs.file-max = 6815744
+kernel.sem = 250 32000 100 128
+kernel.shmmni = 4096
+kernel.shmall = 1073741824
+kernel.shmmax = 4398046511104
+kernel.panic_on_oops = 1
+net.core.rmem_default = 262144
+net.core.rmem_max = 4194304
+net.core.wmem_default = 262144
+net.core.wmem_max = 1048576
+net.ipv4.conf.all.rp_filter = 2
+net.ipv4.conf.default.rp_filter = 2
+fs.aio-max-nr = 1048576
+net.ipv4.ip_local_port_range = 9000 65500
+
+/sbin/sysctl -p
+
+vim /etc/security/limits.conf
+
+oracle   soft   nofile    1024
+oracle   hard   nofile    65536
+oracle   soft   nproc    16384
+oracle   hard   nproc    16384
+oracle   soft   stack    10240
+oracle   hard   stack    32768
+oracle   hard   memlock    134217728
+oracle   soft   memlock    134217728
+
+
+
+yum install binutils -y
+yum install compat-libcap1 -y
+yum install compat-libstdc++-33 -y
+yum install compat-libstdc++-33.i686 -y
+yum install glibc -y
+yum install glibc.i686 -y
+yum install glibc-devel -y
+yum install glibc-devel.i686 -y
+yum install ksh -y
+yum install libaio -y
+yum install libaio.i686 -y
+yum install libaio-devel -y
+yum install libaio-devel.i686 -y
+yum install libX11 -y
+yum install libX11.i686 -y
+yum install libXau -y
+yum install libXau.i686 -y
+yum install libXi -y
+yum install libXi.i686 -y
+yum install libXtst -y
+yum install libXtst.i686 -y
+yum install libgcc -y
+yum install libgcc.i686 -y
+yum install libstdc++ -y
+yum install libstdc++.i686 -y
+yum install libstdc++-devel -y
+yum install libstdc++-devel.i686 -y
+yum install libxcb -y
+yum install libxcb.i686 -y
+yum install make -y
+yum install nfs-utils -y
+yum install net-tools -y
+yum install smartmontools -y
+yum install sysstat -y
+yum install unixODBC -y
+yum install unixODBC-devel -y
+
+
+
+groupadd -g 54321 oinstall
+groupadd -g 54322 dba
+groupadd -g 54323 oper
+useradd -u 54321 -g oinstall -G dba,oper oracle
+
+passwd oracle
+
+vim /etc/selinux/config
+SELINUX=permissive
+
+
+setenforce Permissive
+
+systemctl stop firewalld
+systemctl disable firewalld
+
+
+mkdir -p /u01/app/oracle/product/12.2.0.1/db_1
+chown -R oracle:oinstall /u01
+chmod -R 775 /u01
+
+
+mkdir /home/oracle/scripts
+
+cat > /home/oracle/scripts/setEnv.sh <<EOF
+# Oracle Settings
+export TMP=/tmp
+export TMPDIR=\$TMP
+
+export ORACLE_HOSTNAME=node1
+export ORACLE_UNQNAME=orcl
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_HOME=\$ORACLE_BASE/product/12.2.0.1/db_1
+export ORACLE_SID=orcl
+
+export PATH=/usr/sbin:/usr/local/bin:\$PATH
+export PATH=\$ORACLE_HOME/bin:\$PATH
+
+export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
+EOF
+
+echo ". /home/oracle/scripts/setEnv.sh" >> /home/oracle/.bash_profile
+
+
+cat > /home/oracle/scripts/start_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbstart \$ORACLE_HOME
+EOF
+
+
+cat > /home/oracle/scripts/stop_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbshut \$ORACLE_HOME
+EOF
+
+chown -R oracle.oinstall /home/oracle/scripts
+chmod u+x /home/oracle/scripts/*.sh
+
+
+
+Post Installation
+Edit the "/etc/oratab" file setting the restart flag for each instance to 'Y'.
+
+orcl:/u01/app/oracle/product/12.2.0.1/db_1:Y
+
+
+~/scripts/start_all.sh
+~/scripts/stop_all.sh
+
+
+
+cd $ORACLE_HOME/network/admin
+vim tnsnames.ora
+
+ORCLPDB =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = node1)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = orclpdb)
+    )
+  )
+
+
+SQL> ALTER  SESSION  SET  CONTAINER  = orclpdb;
+
+SQL> SELECT  name,  open_mode  FROM  v$pdbs;
+
+SQL> alter pluggable database orclpdb save state;
+
+[oracle@oracledb ~]$ sqlplus / as sysdba
+
+ALTER  USER  hr  IDENTIFIED  BY  hr  ACCOUNT  unlock;
+
+SQL> show conn_name;
+
+SQL> conn hr/hr@orclpdb;
+
+
+OR
+
+[oracle@oracledb ~]$ sqlplus hr/hr@orclpdb;
+
+
+
+yum -y install xterm* xorg* xclock xauth
+
+
+
+
+
+
+create tablespace apex datafile '/u01/app/oracle/oradata/orcl/apex01.dbf' SIZE 500M AUTOEXTEND ON NEXT 1M;
+SELECT TABLESPACE_NAME,FILE_NAME FROM DBA_DATA_FILES;
+
+DROP TABLESPACE APEX INCLUDING CONTENTS AND DATAFILES;
+
+
+java -jar ords.war
+
+encryption=all encryption_mode=password  -> if we dont mention by default those are given
+encryption_password=test
+
+
+update-alternatives --config java
+
+
+
+
+
+
+
+http://www.rebellionrider.com/how-to-unlock-hr-user-in-oracle-database-12c/
