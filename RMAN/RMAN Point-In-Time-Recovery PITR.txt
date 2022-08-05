@@ -1,0 +1,44 @@
+Take DB FULL Backup
+Connect to the target DB and take DB full backup
+
+backup database plus archivelog;
+Once backup is completed, check backup tag via below command
+
+list backup of database summary;
+In our case, the backup tag is TAG20170115T952545
+
+===============================================================
+Simulate Failure
+===============================================================
+Delete all the datafiles from server. Connect as sysdba and
+
+SQL> select name from v$datafile;
+
+rm -rf <DF locations>
+
+===============================================================
+Start RMAN PITR
+===============================================================
+Kill the DB instance, if running. You can do shut abort or kill pmon at OS level
+Start the DB instance and take it to Mount stage
+
+[oracle@oracledb ~]$ ps -ef | grep pmon
+oracle    1727     1  0 21:44 ?        00:00:00 ora_pmon_orcl
+[oracle@oracledb ~]$ kill -9 1727
+
+[oracle@oracledb ~]$ sqlplus / as sysdba
+SQL> startup mount;
+
+rman target /
+
+run
+{
+RESTORE DATABASE from tag TAG20170115T952545;
+RECOVER DATABASE UNTIL TIME "TO_DATE('2017-01-15 10:54:53', 'YYYY-MM-DD HH24:MI:SS')";
+sql 'ALTER DATABASE OPEN RESETLOGS';
+}
+
+
+
+
+
