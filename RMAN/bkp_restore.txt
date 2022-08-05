@@ -1,0 +1,93 @@
+direct=y if we use this parameter the DW(Data Pump Worker Process) will directly copy the buffers from the datafile otherwise buffers will first copy 
+to the database buffer cache and from there it will write to dumpfile, So it will unnecessarily use the database instance and the performance will
+be impact.
+
+
+DW(Data Pump Worker Process) -> The Data Pump worker process is responsible for performing tasks that are
+ assigned by the Data Pump master process, such as the loading and unloading of metadata and data.
+ 
+ 
+Enable Archivelog Mode
+===================================================================
+SQL> select log_mode from v$database; / SQL> archive log list;
+
+alter database mount;
+alter database archivelog;
+alter database open;
+
+
+[oracle@oracledb ~]$ rman target /
+RMAN> show all;
+RMAN> CONFIGURE CONTROLFILE AUTOBACKUP ON;  [spfile + control file + data file ]
+RMAN> backup database plus archivelog;
+
+SQL> show parameter spfile;
+SQL> show parameter control;
+SQL> select name from v$datafile;
+
+RMAN> backup database plus archivelog;
+RMAN> list backup of database summary;
+
+We deleted all the files of database [spfile + control file + data file] 
+
+Steps to recover:
+1. Restore from full backup  [Full Backup = spfile + control file + data file ]
+2. Apply archivelog files
+3. Apply redo log files if any
+4. Open the database
+
+Nomount - spfile
+Mount - control files
+Open - Archives + RL + DF
+
+[oracle@oracledb ~]$ rman target /
+Will show error because the spfile is missing and for [target /] it is looking for the database which is set on env variable. When it is trying to connect 
+to the database it is also looking for the control file.
+
+[oracle@oracledb ~]$ rman   [We are connect to the rman utility not to the database]
+
+RMAN> STARTUP FORCE NOMOUNT;
+-- RMAN-06171: not connected to target database
+RMAN> exit
+
+
+
+[oracle@oracledb ~]$ cd $ORACLE_HOME/dbs/
+
+[oracle@oracledb ~]$ ps -ef | grep pmon
+oracle    1727     1  0 21:44 ?        00:00:00 ora_pmon_orcl
+[oracle@oracledb ~]$ kill -9 1727
+
+[oracle@oracledb ~]$ sqlplus / as sysdba
+Connected to an idle instance.
+
+SQL>  startup nomount;  [As spfile is missing it will look for pfile [init+dbname.ora] if pfile also missing copy init.ora , see the errors and comment the unnecessary file location]
+
+Also can create init.ora from alert log file by copying the file locations.
+
+
+[oracle@oracledb trace]$ rman target /
+connected to target database: ORCL (not mounted)
+
+RMAN> restore controlfile from autobackup;
+OR
+RMAN> restore controlfile from '/u01/app/oracle/product/12.2.0.1/db_1/dbs/c-1638707958-20220802-00';   [rman stores backup tag in control file if control file is missing rman will not know the tag. we can see rman log or save putty session, or go to the backup location and look for the latest backup piece]
+
+RMAN> sql 'alter database mount';
+or 
+RMAN> alter database mount;
+
+
+RMAN> list backup of database summary;
+
+RMAN> restore database from tag TAG20220805T181906;
+
+RMAN> recover database;
+
+RMAN> alter database open RESETLOGS;
+
+
+
+
+
+
