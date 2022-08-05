@@ -1,12 +1,4 @@
-direct=y if we use this parameter the DW(Data Pump Worker Process) will directly copy the buffers from the datafile otherwise buffers will first copy 
-to the database buffer cache and from there it will write to dumpfile, So it will unnecessarily use the database instance and the performance will
-be impact.
 
-
-DW(Data Pump Worker Process) -> The Data Pump worker process is responsible for performing tasks that are
- assigned by the Data Pump master process, such as the loading and unloading of metadata and data.
- 
- 
 Enable Archivelog Mode
 ===================================================================
 SQL> select log_mode from v$database; / SQL> archive log list;
@@ -85,9 +77,4 @@ RMAN> restore database from tag TAG20220805T181906;
 RMAN> recover database;
 
 RMAN> alter database open RESETLOGS;
-
-
-
-
-
 
