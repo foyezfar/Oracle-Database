@@ -1,0 +1,65 @@
+SELECT tablespace_name, file_name, bytes / 1024 / 1024 AS MB
+  FROM dba_data_files;
+
+CREATE TABLESPACE foyez_tbs
+  DATAFILE '/u01/app/oracle/oradata/orcl/orclpdb/foyez_01.dbf'
+    SIZE 10M 
+    AUTOEXTEND ON;
+  
+create user FOYEZ identified by FOYEZ
+PROFILE DEFAULT
+DEFAULT TABLESPACE foyez_tbs
+TEMPORARY TABLESPACE TEMP;
+
+grant create session to FOYEZ;
+GRANT RESOURCE TO FOYEZ;
+GRANT CREATE DATABASE LINK TO FOYEZ;
+GRANT CREATE SEQUENCE TO FOYEZ;
+GRANT CREATE SESSION TO FOYEZ;
+GRANT CREATE SYNONYM TO FOYEZ;
+GRANT CREATE VIEW TO FOYEZ;
+GRANT UNLIMITED TABLESPACE TO foyez_tbs
+
+DROP USER FOYEZ CASCADE;
+
+-- ALTER USER FOYEZ QUOTA UNLIMITED ON foyez_tbs;
+-- GRANT EXECUTE ON SYS.DBMS_STATS TO FOYEZ;
+
+
+[select privilege
+from dba_sys_privs
+where grantee = 'RESOURCE'
+
+CREATE TABLE
+CREATE OPERATOR
+CREATE TYPE
+CREATE CLUSTER
+CREATE TRIGGER
+CREATE INDEXTYPE
+CREATE PROCEDURE
+CREATE SEQUENCE]
+
+
+
+
+
+
+
+
+CREATE PROCEDURE grant_select(
+    username VARCHAR2, 
+    grantee VARCHAR2)
+AS   
+BEGIN
+    FOR r IN (
+        SELECT owner, table_name 
+        FROM all_tables 
+        WHERE owner = username
+    )
+    LOOP
+        EXECUTE IMMEDIATE 
+            'GRANT SELECT ON '||r.owner||'.'||r.table_name||' to ' || grantee;
+    END LOOP;
+END; 
+
+EXEC grant_select('FOYEZ','RONY');

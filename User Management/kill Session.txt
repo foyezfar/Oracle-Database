@@ -1,0 +1,11 @@
+SELECT 'ALTER SYSTEM KILL SESSION '''||sid||','||serial#||''' IMMEDIATE;' FROM v$session;
+
+
+
+
+select 'kill -9 ' || p.SPID, s.USERNAME, 'alter system kill session '''||sid||',' || s.serial# || ''';',s.STATUS
+from v$session s, v$process p
+where s.PADDR = p.ADDR (+)
+and s.STATUS='INACTIVE' 
+and s.USERNAME = 'HR'
+order by 1;

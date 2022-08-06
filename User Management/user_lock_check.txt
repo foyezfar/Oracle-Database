@@ -1,0 +1,58 @@
+SELECT username, account_status, created, lock_date, to_char(expiry_date,'DD/Mon/YYYY') expiry_date
+  FROM dba_users
+ WHERE 
+  account_status NOT LIKE '%LOCKED%'
+ AND TRUNC (expiry_date) BETWEEN TRUNC (SYSDATE - 30)
+    AND TRUNC (SYSDATE + 30);
+	
+	
+SELECT username, account_status, created, lock_date, expiry_date
+  FROM dba_users
+ WHERE account_status != 'OPEN';
+ 
+ 
+
+
+SELECT    ' alter user '
+           || u.NAME
+           || ' identified by values '''
+           || u.PASSWORD
+           || ''';'
+               status
+      FROM SYS.user$ u, dba_users d
+     WHERE     u.user# = d.user_id
+           --   and d.ACCOUNT_STATUS = 'EXPIRED(GRACE)'
+           --AND d.oracle_maintained = 'N'
+           --AND account_status = 'OPEN'
+           AND account_status NOT LIKE '%LOCKED%'
+           --AND TRUNC (d.expiry_date) + 15 < TRUNC (SYSDATE);
+           AND TRUNC (d.expiry_date) BETWEEN TRUNC (SYSDATE - 60)
+                                         AND TRUNC (SYSDATE + 60);
+
+
+
+
+
+========================================================================
+
+
+CREATE OR REPLACE FORCE VIEW LOCKV_USERINFO
+(
+    STATUS
+)
+AS
+    SELECT    ' alter user '
+           || u.NAME
+           || ' identified by values '''
+           || u.PASSWORD
+           || ''';'
+               status
+      FROM SYS.user$ u, dba_users d
+     WHERE     u.user# = d.user_id
+           --   and d.ACCOUNT_STATUS = 'EXPIRED(GRACE)'
+           AND d.oracle_maintained = 'N'
+           --AND account_status = 'OPEN'
+           AND account_status NOT LIKE '%LOCKED%'
+           --AND TRUNC (d.expiry_date) + 15 < TRUNC (SYSDATE);
+           AND TRUNC (d.expiry_date) BETWEEN TRUNC (SYSDATE - 30)
+                                         AND TRUNC (SYSDATE + 30);

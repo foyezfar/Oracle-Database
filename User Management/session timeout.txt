@@ -1,0 +1,34 @@
+IMPORTANT NOTE:  You must set resource_limit=TRUE to automatically terminate Oracle connections.
+
+alter system set resource_limit=true scope=both;
+
+SQL> show parameter resource_limit;
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+resource_limit                       boolean     TRUE
+
+
+You can use profiles to set the connect time and idle time with "alter profile" statements.  Here we set the connect_time to fire in 90 minutes:
+
+alter profile senior_analyst limit
+   ldle_time 90;
+   
+Note: idle_time parameter will disconnect sessions after n minutes of inactivity. 
+ 
+select profile, limit , resource_name from DBA_PROFILES
+where profile = 'DEFAULT'
+--and resource_name = 'IDLE_TIME';
+
+
+
+
+
+
+
+
+
+
+
+
+https://smarttechways.com/2020/06/12/configure-resource-manager-to-kill-inactive-session-in-oracle/#comments
