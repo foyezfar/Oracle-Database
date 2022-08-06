@@ -1,0 +1,301 @@
+Oracle User Management
+======================================================
+To check all users inside the database
+SQL> select username, account_status, default_tablespace from dba_users;
+
+To check the current user
+SQL> show user;
+
+1. Create a user
+======================================================
+create user FOYEZ identified by FOYEZ
+PROFILE DEFAULT
+DEFAULT TABLESPACE USERS
+TEMPORARY TABLESPACE TEMP;
+
+The minimum privilege required to connect to a database is to create a session
+grant create session to FOYEZ;
+
+2. Change the password of a user
+======================================================
+alter user FOYEZ identified by FOYEZ#91234;
+
+3. Lock/unlock a user
+======================================================
+alter user FOYEZ account lock;
+alter user FOYEZ account unlock;
+
+4. Make a user password expiry
+======================================================
+When we make a user id expiry, then when the user does log in, it will prompt him to set a new password.
+alter user dev_class account expire;
+
+Change User Default Tablespace
+======================================================
+alter user FOYEZ default tablespace TABLESPACENAME;
+select username,default_tablespace from dba_users where username=FOYEZ';
+
+Tablespace Quota
+======================================================
+SQL> Alter user FOYEZ quota 100M on users;
+SQL> ALTER USER FOYEZ QUOTA UNLIMITED ON users;
+
+Or you can give unlimited quota to a user on all tablespace as follows.
+GRANT UNLIMITED TABLESPACE TO FOYEZ;
+
+Tablespace used for a schema
+======================================================
+select distinct tablespace_name from dba_segments where owner='FOYEZ';
+
+PRIVILEGES
+======================================================
+A privilege is permission to execute either a particular type of SQL statement or to perform a particular action on database objects.
+
+Two types of privilege
+1. SYSTEM PRIVILEGE
+2. OBJECT PRIVILEGE
+
+SYSTEM PRIVILEGE
+======================================================
+A system privilege is the right to perform a particular action or to perform an action on any object of a particular type.
+List of all system privileges
+
+SQL> select distinct privilege from dba_sys_privs;
+
+Grant a system privilege to a user
+======================================================
+Grant create any table, alter any table to FOYEZ;
+select privilege, grantee from dba_sys_privs where grantee='FOYEZ';
+Revoke a system privilege from a user
+REVOKE create any table from FOYEZ;
+
+OBJECT PRIVILEGE
+======================================================
+An object privilege is the right to perform a particular action on an object or to access another user’s object.
+
+list of object privileges
+======================================================
+SQL> select distinct privilege from DBA_TAB_PRIVS;
+
+Grant object privilege
+======================================================
+grant insert, update, delete on HR.EMPLOYEES to FOYEZ;
+
+-- grant execute on a procedure
+grant execute on HR.DAILYPROC to FOYEZ;
+
+-- View the granted object privilege:
+select grantee,owner,table_name,privilege from dba_tab_privs where grantee='FOYEZ';
+Revoke object privilege
+
+revoke update, delete on HR.EMPLOYEES from FOYEZ;
+
+Grant SELECT on all tables in a schema to a user
+======================================================
+CREATE PROCEDURE grant_select(
+    username VARCHAR2, 
+    grantee VARCHAR2)
+AS   
+BEGIN
+    FOR r IN (
+        SELECT owner, table_name 
+        FROM all_tables 
+        WHERE owner = username
+    )
+    LOOP
+        EXECUTE IMMEDIATE 
+            'GRANT SELECT ON '||r.owner||'.'||r.table_name||' to ' || grantee;
+    END LOOP;
+END;
+
+This example grants the SELECT object privileges of all tables that belong to the user HR to the user FOYEZ:
+EXEC grant_select('HR', 'FOYEZ');
+
+ROLE
+======================================================
+A role is a collection of privileges. It allows easier management of privileges.
+
+Create a role
+======================================================
+create role DEV_ROLE;
+
+grant create session to dev_role;
+grant select any table to dev_role;  
+-- any table  that allows the grantee to Query tables, views, or materialized views in any schema except SYS
+grant insert on HR.EMPLOYEES to dev_role;
+
+-- List of SYSTEM privileges granted to a ROLE
+SQL> select role, privilege from role_sys_privs where role='DEV_ROLE';
+
+-- List of OBJECT privileges granted to ROLE;
+SQL> select role,owner,table_name,privilege from role_tab_privs where role='DEV_ROLE';
+
+Grant role to a User
+grant dev_role to FOYEZ
+
+-- List of the user and granted role:
+SQL> select grantee,GRANTED_ROLE from dba_role_privs where granted_role='DEV_ROLE';
+
+Drop a user
+Dropping a user will drop all the objects it owns.
+drop user FOYEZ cascade;
+ Drop a Role
+
+Drop role DEV_ROLE;
+
+PROFILE:
+======================================================
+A profile enforces a set of password security rules and resource usage limits.
+While creating a user if no profile is mentioned, then a DEFAULT profile will be assigned.
+DEFAULT PROFILE SETTING:
+
+SQL>  select profile,resource_name,RESOURCE_TYPE,limit from dba_profiles where profile='DEFAULT';
+
+*SESSION_PER_USER – No. of allowed concurrent sessions for a user
+*CPU_PER_SESSION – CPU time limit for a session, expressed in hundredth of seconds.
+*CPU_PER_CALL – Specify the CPU time limit for a call (a parse, execute, or fetch), expressed in hundredths of seconds.
+*CONNECT_TIME – Specify the total elapsed time limit for a session, expressed in minutes.
+*IDLE_TIME – Specify the permitted periods of continuous inactive time during a session, expressed in minutes.
+*LOGICAL_READS_PER_SESSION – Specify the permitted number of data blocks read in a session, including blocks read from memory and disk
+*LOGICAL_READS_PER_CALL –permitted number of data blocks read for a call to process a SQL statement (a parse, execute, or fetch).
+*PRIVATE_SGA – SGA a session can allocate in the shared pool of the system global area (SGA), expressed in bytes.
+*FAILED_LOGIN_ATTEMPTS – No. of failed attempts to log in to the user account before the account is locked
+*PASSWORD_LIFE_TIME: No. of days the account will be open. after that it will expiry.
+*PASSWORD_REUSE_TIME: number of days before which a password cannot be reused
+*PASSWORD_REUSE_MAX: number of days before which a password can be reused
+*PASSWORD_LOCK_TIME: Number of days the user account remains locked after failed login
+*PASSWORD_GRACE_TIME: Number of grace days for user to change password
+*PASSWORD_VERIFY_FUNCTION: PL/SQL that can be used for password verification
+
+CREATE PROFILE "APP_PROFILE"
+LIMIT
+COMPOSITE_LIMIT UNLIMITED
+SESSIONS_PER_USER UNLIMITED
+CPU_PER_SESSION UNLIMITED
+CPU_PER_CALL UNLIMITED
+LOGICAL_READS_PER_SESSION UNLIMITED
+LOGICAL_READS_PER_CALL UNLIMITED
+IDLE_TIME 90
+CONNECT_TIME UNLIMITED
+PRIVATE_SGA UNLIMITED
+FAILED_LOGIN_ATTEMPTS 10
+PASSWORD_LIFE_TIME 180
+PASSWORD_REUSE_TIME UNLIMITED
+PASSWORD_REUSE_MAX UNLIMITED
+PASSWORD_VERIFY_FUNCTION NULL
+PASSWORD_LOCK_TIME UNLIMITED
+PASSWORD_GRACE_TIME UNLIMITED;
+
+Note: password lock time by default is for 1 day. You can specify it in minutes (n/1440) or even in seconds (n/86400)
+Alter a profile
+
+ALTER PROFILE APP_PROFILE LIMIT FAILED_LOGIN_ATTEMPS UNLIMITED;
+Change the profile of a user
+
+SQL> select username, profile from dba_users where username='FOYEZ';
+SQL> ALTER HR PROFILE APP_PROFILE;
+How to make a user non-expiry
+Usually, application users need to set non-expiry. I.e it will never expire. To set it, we need to either create a profile with PASSWORD_LIFE_TIME UNLIMITED or alter the profile of that user.
+
+SQL> select username,profile,EXPIRY_DATE 
+from dba_users 
+where username='FOYEZ';
+
+ALTER PROFILE APP_PROFILE LIMIT PASSWORD_LIFE_TIME UNLIMITED;
+
+
+Find which user gonna expire and alter them:
+======================================================
+SELECT    ' alter user '
+           || u.NAME
+           || ' identified by values '''
+           || u.PASSWORD
+           || ''';'
+               status
+      FROM SYS.user$ u, dba_users d
+     WHERE     u.user# = d.user_id
+           AND account_status NOT LIKE '%LOCKED%'
+           AND TRUNC (d.expiry_date) BETWEEN TRUNC (SYSDATE - 30)
+                                         AND TRUNC (SYSDATE + 30);
+
+Find User Permissions
+======================================================
+To check system privileges granted to a user:
+select privilege from dba_sys_privs where grantee='SCOTT';
+
+To check object level privileges granted to a user or role
+======================================================
+SQL> select owner, table_name, privilege from dba_tab_privs where grantee='SALES_CLERK';
+
+To check roles assigned to a user
+======================================================
+select granted_role from dba_role_privs where grantee='SCOTT';
+
+To check permissions assigned to role
+======================================================
+select privilege from role_sys_privs where role='SALES_CLERK';
+select owner, table_name, privilege from role_tab_privs where role='SALES_CLERK';
+
+To check roles granted to another role
+======================================================
+SQL> select granted_role from role_role_privs where role='SALES_CLERK';
+
+
+CREATE PROFILE "DEFAULT" LIMIT
+  SESSIONS_PER_USER UNLIMITED
+  CPU_PER_SESSION UNLIMITED
+  CPU_PER_CALL UNLIMITED
+  CONNECT_TIME UNLIMITED
+  IDLE_TIME UNLIMITED
+  LOGICAL_READS_PER_SESSION UNLIMITED
+  LOGICAL_READS_PER_CALL UNLIMITED
+  COMPOSITE_LIMIT UNLIMITED
+  PRIVATE_SGA UNLIMITED
+  FAILED_LOGIN_ATTEMPTS 10
+  PASSWORD_LIFE_TIME 180
+  PASSWORD_REUSE_TIME UNLIMITED
+  PASSWORD_REUSE_MAX UNLIMITED
+  PASSWORD_LOCK_TIME 1
+  PASSWORD_GRACE_TIME 7
+  PASSWORD_VERIFY_FUNCTION NULL;
+
+CREATE PROFILE ORA_STIG_PROFILE LIMIT
+  SESSIONS_PER_USER DEFAULT
+  CPU_PER_SESSION DEFAULT
+  CPU_PER_CALL DEFAULT
+  CONNECT_TIME DEFAULT
+  IDLE_TIME 15
+  LOGICAL_READS_PER_SESSION DEFAULT
+  LOGICAL_READS_PER_CALL DEFAULT
+  COMPOSITE_LIMIT DEFAULT
+  PRIVATE_SGA DEFAULT
+  FAILED_LOGIN_ATTEMPTS 3
+  PASSWORD_LIFE_TIME 60
+  PASSWORD_REUSE_TIME 365
+  PASSWORD_REUSE_MAX 10
+  PASSWORD_LOCK_TIME UNLIMITED
+  PASSWORD_GRACE_TIME 5
+  PASSWORD_VERIFY_FUNCTION ORA12C_STIG_VERIFY_FUNCTION;
+
+
+https://dbaclass.com/article/user-management-in-oracle/
+https://www.support.dbagenesis.com/post/users-roles-profiles-in-oracle
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
