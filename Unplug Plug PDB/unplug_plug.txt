@@ -1,0 +1,91 @@
+
+SELECT 
+   tablespace_name, 
+   file_name, 
+   bytes / 1024/ 1024  MB
+FROM
+   dba_data_files;
+   
+CREATE TABLESPACE tbs1 
+   DATAFILE '/u01/app/oracle/oradata/orcl/orclpdb/tbs1_data.dbf' 
+   SIZE 10m;   
+   
+DROP USER FOYEZ CASCADE;
+
+CREATE USER FOYEZ
+  IDENTIFIED BY foyez
+  DEFAULT TABLESPACE USERS
+  TEMPORARY TABLESPACE TEMP
+  PROFILE DEFAULT
+  ACCOUNT UNLOCK;
+
+-- 1 Role for FOYEZ 
+GRANT RESOURCE TO FOYEZ;
+ALTER USER FOYEZ DEFAULT ROLE ALL;
+
+-- 7 System Privileges for FOYEZ 
+GRANT ALTER SESSION TO FOYEZ;
+GRANT CREATE DATABASE LINK TO FOYEZ;
+GRANT CREATE SEQUENCE TO FOYEZ;
+GRANT CREATE SESSION TO FOYEZ;
+GRANT CREATE SYNONYM TO FOYEZ;
+GRANT CREATE VIEW TO FOYEZ;
+GRANT UNLIMITED TABLESPACE TO FOYEZ;   
+
+alter user foyez default TABLESPACE tbs1;
+
+
+
+==================================================
+Unplug PDB to ".pdb" Archive File
+==================================================
+sqlplus / as sysdba
+show pdbs;
+ALTER PLUGGABLE DATABASE orclpdb CLOSE immediate;
+ALTER PLUGGABLE DATABASE orclpdb UNPLUG INTO '/u01/orclpdb.pdb';
+
+
+You can delete the PDB and drop the datafile, as they are all present in the archive file.
+
+DROP PLUGGABLE DATABASE orclpdb INCLUDING DATAFILES;
+
+show pdbs;  
+or 
+SELECT name,open_mode FROM v$pdbs;
+
+SET SERVEROUTPUT ON
+DECLARE
+  l_result BOOLEAN;
+BEGIN
+  l_result := DBMS_PDB.check_plug_compatibility(
+                pdb_descr_file => '/u01/orclpdb.pdb',
+                pdb_name       => 'orclpdb');
+
+  IF l_result THEN
+    DBMS_OUTPUT.PUT_LINE('compatible');
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('incompatible');
+  END IF;
+END;
+/
+
+
+If the PDB is not compatible, violations are listed in the PDB_PLUG_IN_VIOLATIONS view. If the PDB is compatible, create a new PDB 
+using it as the source. If we were creating it with a new name we might do something like this.
+
+create pluggable database orclpdb USING '/u01/orclpdb.pdb' file_name_convert=('/u01/','/u01/app/oracle/oradata/orcl/orclpdb/');
+ALTER PLUGGABLE DATABASE orclpdb OPEN READ WRITE;
+show pdbs;
+
+Note : File name convert [file_name_convert=('source','destination')]
+When you create a pluggable database and you are not in OMF you need to add a FILE_NAME_CONVERT to convert from the source file names to destination file names.
+
+https://oracle-base.com/articles/12c/multitenant-pdb-archive-files-for-unplug-and-plugin-12cr2
+https://oracle-blog.com/unplug-and-plugin-pluggable-database-pdb/
+https://www.dbi-services.com/blog/12cr2-pdb-archive/
+
+
+
+
+
+
