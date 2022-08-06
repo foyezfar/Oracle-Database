@@ -1,0 +1,131 @@
+
+
+If you are using RHEL7 or CentOS7, you can pick up the PRM from the OL7 repository and install it. It will pull the dependencies from your normal repositories.
+======================================================================
+curl -o oracle-database-preinstall-19c-1.0-1.el7.x86_64.rpm https://yum.oracle.com/repo/OracleLinux/OL7/latest/x86_64/getPackage/oracle-database-preinstall-19c-1.0-1.el7.x86_64.rpm
+
+yum -y localinstall oracle-database-preinstall-19c-1.0-1.el7.x86_64.rpm
+
+
+passwd oracle
+
+Set secure Linux to permissive by editing the "/etc/selinux/config" file, making sure the SELINUX flag is set as follows.
+
+SELINUX=permissive
+Once the change is complete, restart the server or run the following command.
+
+setenforce Permissive
+
+If you have the Linux firewall enabled, you will need to disable or configure it, as shown here. To disable it, do the following.
+
+systemctl stop firewalld
+systemctl disable firewalld
+
+
+mkdir -p /u01/app/oracle/product/19.0.0/dbhome_1
+mkdir -p /u02/oradata
+chown -R oracle:oinstall /u01 /u02
+chmod -R 775 /u01 /u02
+
+
+mkdir /home/oracle/scripts
+
+cat > /home/oracle/scripts/setEnv.sh <<EOF
+# Oracle Settings
+export TMP=/tmp
+export TMPDIR=\$TMP
+
+export ORACLE_HOSTNAME=localhost.localdomain
+export ORACLE_UNQNAME=orcl
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_HOME=\$ORACLE_BASE/product/19.0.0/dbhome_1
+export ORA_INVENTORY=/u01/app/oraInventory
+export ORACLE_SID=orcl
+export PDB_NAME=orclpdb
+export DATA_DIR=/u02/oradata
+
+export PATH=/usr/sbin:/usr/local/bin:\$PATH
+export PATH=\$ORACLE_HOME/bin:\$PATH
+
+export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
+EOF
+
+
+echo ". /home/oracle/scripts/setEnv.sh" >> /home/oracle/.bash_profile
+
+
+cat > /home/oracle/scripts/start_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbstart \$ORACLE_HOME
+EOF
+
+
+cat > /home/oracle/scripts/stop_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbshut \$ORACLE_HOME
+EOF
+
+chown -R oracle:oinstall /home/oracle/scripts
+chmod u+x /home/oracle/scripts/*.sh
+
+
+
+# Silent mode.
+./runInstaller -ignorePrereq -waitforcompletion -silent                        \
+    oracle.install.option=INSTALL_DB_SWONLY                                    \
+    ORACLE_HOSTNAME=192.168.184.145	                                           \
+    UNIX_GROUP_NAME=oinstall                                                   \
+    INVENTORY_LOCATION=/u01/app/oraInventory2                                   \
+    SELECTED_LANGUAGES=en,en_GB                                                \
+    ORACLE_HOME=/u01/app/oracle/product/19.0.0/dbhome_1                                                 \
+    ORACLE_BASE=/u01/app/oracle                                                \
+    oracle.install.db.InstallEdition=EE                                        \
+    oracle.install.db.OSDBA_GROUP=dba                                          \
+    oracle.install.db.OSBACKUPDBA_GROUP=dba                                    \
+    oracle.install.db.OSDGDBA_GROUP=dba                                        \
+    oracle.install.db.OSKMDBA_GROUP=dba                                        \
+    oracle.install.db.OSRACDBA_GROUP=dba                                       \
+    SECURITY_UPDATES_VIA_MYORACLESUPPORT=false                                 \
+    DECLINE_SECURITY_UPDATES=true
+
+
+dbca -silent -createDatabase                                                   \
+     -templateName General_Purpose.dbc                                         \
+     -gdbname ${ORACLE_SID} -sid  ${ORACLE_SID} -responseFile NO_VALUE         \
+     -characterSet AL32UTF8                                                    \
+     -sysPassword sys                                                 \
+     -systemPassword sys                                             \
+     -createAsContainerDatabase true                                           \
+     -numberOfPDBs 1                                                           \
+     -pdbName ${PDB_NAME}                                                      \
+     -pdbAdminPassword sys                                          \
+     -databaseType MULTIPURPOSE                                                \
+     -memoryMgmtType auto_sga                                                  \
+     -totalMemory 2000                                                         \
+     -storageType FS                                                           \
+     -datafileDestination "${DATA_DIR}"                                        \
+     -redoLogFileSize 50                                                       \
+     -emConfiguration NONE                                                     \
+     -ignorePreReqs
+
+
+
+
+
+
+References :
+oracle-base.com/articles/19c/oracle-db-19c-installation-on-oracle-linux-7
+yum.oracle.com/repo/OracleLinux/OL7/latest/x86_64/
