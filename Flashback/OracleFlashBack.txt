@@ -1,0 +1,102 @@
+SQL > clear scr
+
+
+To see the contents of your recycle bin, query the USER_RECYCLEBIN data dictionary view. You can use the RECYCLEBIN synonym instead. The following two statements return the same rows:
+SELECT * FROM DBA_RECYCLEBIN;
+
+SELECT * FROM RECYCLEBIN;
+SELECT * FROM USER_RECYCLEBIN;
+
+create table regions_test as select * from regions;
+
+update regions_test set region_name='Dhaka' where region_id in (1,2);
+
+ALTER TABLE regions_test ENABLE ROW MOVEMENT;
+
+FLASHBACK TABLE regions_test TO TIMESTAMP (SYSTIMESTAMP - INTERVAL '2' minute);
+
+select * from regions_test;
+
+SQL> show parameter UNDO_RETENTION ;
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+undo_retention                       integer     900
+
+SQL> alter system set UNDO_RETENTION = 1440; 
+
+
+==========================================================================
+Flashback Query:
+==========================================================================
+select * from regions_test as of timestamp sysdate-1/24;  [one houre before state]
+Or
+SELECT * FROM regions_test AS OF TIMESTAMP TO_TIMESTAMP('2022-06-16 10:42:00', 'YYYY-MM-DD HH:MI:SS');
+
+To insert the accidently deleted rows again in the table he can type
+
+SQL> insert into emp (select * from emp as of timestamp sysdate-1/24)
+
+
+Before Starting this example let’s us collect the Timestamp
+==========================================================================
+SQL> select to_char(SYSTIMESTAMP,'YYYY-MM-DD HH:MI:SS') from dual;
+
+TO_CHAR(SYSTIMESTAM
+-------------------
+2022-06-16 11:06:38
+
+select versions_xid,versions_starttime,versions_endtime,
+   versions_operation,region_id,region_name from regions_test versions between
+   timestamp to_timestamp('2022-06-16 11:00:00','yyyy-mm-dd hh:mi:ss')
+    and to_timestamp('2022-06-16 11:15:00','yyyy-mm-dd hh:mi:ss');
+
+				
+VERSIONS_XID		VERSIONS_STARTTIME			 VERSIONS_ENDTIME		VERSIONS_OPERATION	REGION_ID	REGION_NAME
+050011007E020000	16/06/2022 11:14:31. AM								I						1	Europe
+050011007E020000	16/06/2022 11:14:31. AM								I						2	Americas
+050011007E020000	16/06/2022 11:14:31. AM								I						3	Asia
+050011007E020000	16/06/2022 11:14:31. AM								I						4	Middle East and Africa
+050011007E020000	16/06/2022 11:14:31. AM								D						4	Middle East and Africa
+050011007E020000	16/06/2022 11:14:31. AM								D						3	Asia
+050011007E020000	16/06/2022 11:14:31. AM								D						2	Dhaka
+050011007E020000	16/06/2022 11:14:31. AM								D						1	Dhaka
+050011007E020000	16/06/2022 11:14:31. AM								D						5	Dhaka
+0A0014001B020000	16/06/2022 11:14:19. AM	16/06/2022 11:14:31. AM		I						5	Dhaka
+04000E00DC010000	16/06/2022 11:13:40. AM	16/06/2022 11:14:31. AM		U						2	Dhaka
+04000E00DC010000	16/06/2022 11:13:40. AM	16/06/2022 11:14:31. AM		U						1	Dhaka
+					16/06/2022 11:13:40. AM														1	Europe
+					16/06/2022 11:13:40. AM														2	Americas
+					16/06/2022 11:14:31. AM														3	Asia
+					16/06/2022 11:14:31. AM														4	Middle East and Africa
+													
+				
+The Output should be read from bottom to top, from the output we can see that an Insert has taken place and then  
+erroneous update has taken place and then again update has taken place to change the name.
+VERSIONS_XID                :Identifier of the transaction that created the row version
+VERSIONS_OPERATION          :Operation Performed. I for Insert, U for Update, D for Delete
+VERSIONS_STARTSCN           :Starting System Change Number when the row version was created
+VERSIONS_STARTTIME          :Starting System Change Time when the row version was created
+VERSIONS_ENDSCN             :SCN when the row version expired.
+VERSIONS_ENDTIME            :Timestamp when the row version expired				
+				
+Retrieving a Dropped Table: Example
+==========================================================================
+
+drop table regions_test; 
+Flashback table regions_test to before drop;
+
+SELECT object_name, droptime FROM user_recyclebin WHERE original_name = 'regions_test';
+
+
+If another regions_test table has been created in the  schema, then use the RENAME TO clause to rename the retrieved table:
+
+FLASHBACK TABLE regions_test TO BEFORE DROP RENAME TO regions_test_old;
+
+
+
+
+
+References:
+https://docs.oracle.com/database/121/SQLRF/statements_9013.htm#SQLRF01802
+https://www.oracle-dba-online.com/flash_back_features.htm
