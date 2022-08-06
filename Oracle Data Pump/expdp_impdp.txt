@@ -1,0 +1,64 @@
+
+mkdir -p /u02/dp_exp_dir
+sudo chown -R oracle:oinstall /u02
+
+SQL> create directory DATAPUMP as '/u02/dp_exp_dir';
+select owner,DIRECTORY_NAME,DIRECTORY_PATH from dba_directories;
+
+DROP USER EXP_IMP_DBA CASCADE;
+CREATE USER EXP_IMP_DBA IDENTIFIED BY "123456";
+GRANT CONNECT TO EXP_IMP_DBA;
+GRANT DATAPUMP_EXP_FULL_DATABASE TO EXP_IMP_DBA;
+ALTER USER EXP_IMP_DBA DEFAULT ROLE ALL;
+GRANT UNLIMITED TABLESPACE TO EXP_IMP_DBA;
+GRANT READ, WRITE ON DIRECTORY DATAPUMP TO EXP_IMP_DBA;
+GRANT IMP_FULL_DATABASE TO EXP_IMP_DBA;
+
+
+Take schema level export
+========================================================================
+expdp EXP_IMP_DBA/123456@orclpdb SCHEMAS=FOYEZ DIRECTORY=DATAPUMP DUMPFILE=foyez_backup_`date +%d%m%Y-%H_%M`.dmp LOGFILE=foyez_backup_`date +%d%m%Y-%H_%M`.log encryption_password=123456 compression=all
+
+
+IMPORT
+
+How know the tablespace used for a schema
+====================================================
+select distinct tablespace_name from dba_segments where owner='FOYEZ';
+
+impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP dumpfile=foyez_backup_27072022-12_14.dmp logfile=foyez_test_imp_schema.log remap_schema='FOYEZ:FOYEZ_TEST' REMAP_TABLESPACE=USERS:TEST,FOYEZ:TEST2 encryption_password=123456
+
+
+
+Full Database Export and Import
+====================================================
+expdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP dumpfile=fullprod.dmp logfile=fullprod.log full=y
+
+impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP logfile=imp_fullprod.log full=y
+
+
+
+
+
+
+
+
+
+impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP dumpfile=hr_backup_30072022-16_32.dmp logfile=foyez_test_imp_schema.log 
+remap_schema='HR:FOYEZ' tables='HR.EMPLOYEES,HR.COUNTRIES'  REMAP_TABLESPACE=SYSAUX:FOYEZ encryption_password=123456
+
+
+impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP dumpfile=hr_backup_30072022-16_32.dmp logfile=foyez_test_imp_schema.log 
+remap_schema='HR:FOYEZ' tables='HR.EMPLOYEES,HR.COUNTRIES' remap_table='HR.EMPLOYEES:EMPLOYEE_NEW' REMAP_TABLESPACE=SYSAUX:FOYEZ 
+encryption_password=123456
+
+
+
+
+REMAP_SCHEMA=source_schema:target_schema		  - > remap_schema='HR:FOYEZ'
+REMAP_TABLE='source_schema.TABLE:NEW_TABLE_NAME'  - > remap_table='EMPLOYEES:EMPLOYEE_TEST,HR.COUNTRIES:COUNTRIES_TEST'
+REMAP_TABLESPACE = src_ts:dest_ts				  - > REMAP_TABLESPACE=SYSAUX:FOYEZ
+
+
+
+
