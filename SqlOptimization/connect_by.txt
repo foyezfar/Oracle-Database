@@ -1,0 +1,36 @@
+
+For example, the following query will likely perform full table scan (ignoring selectivity on dept_id):
+
+SELECT * FROM employees 
+WHERE dept_id = 'SALE'
+START WITH manager_id is null
+CONNECT BY PRIOR employee_id = manager_id
+I tried to improve performance in 2 ways:
+
+query A:
+
+SELECT * FROM employees 
+START WITH manager_id is null AND dept_id = 'SALE'
+CONNECT BY PRIOR employee_id = manager_id
+
+query B:
+
+SELECT * FROM (
+               SELECT * FROM employees 
+                WHERE dept_id = 'SALE'
+              )
+START WITH manager_id is null
+CONNECT BY PRIOR employee_id = manager_id
+
+
+Query A says start with managers in the Sales department and then get all their employees. Oracle doesn't "know" that all the 
+employees returned be the query will be in the Sales department, so it can't use that information to reduce the set of data to 
+work with before performing the CONNECT BY.
+
+Query B explicitly reduces the set of data to be worked on to just those employees in Sales, which Oracle can then do before 
+performing the CONNECT BY.
+
+
+
+https://stackoverflow.com/questions/1081570/optimizing-oracle-connect-by-when-used-with-where-clause
+
