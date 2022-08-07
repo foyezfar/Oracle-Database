@@ -1,0 +1,104 @@
+Restore : Fullbackup / L0
+Recover : L1 + ... + Archive Log + Redo log  
+
+
+If database error 
+============================================
+1) see the alert log
+2) sqlplus / as sysdba  [suppose error is showing datafile is missing]
+3) kill the instance [ps -ef | grep pmon   , kill -9 id ]
+4) sqlplus / as sysdba
+5) startup nomount
+6) alter database mount
+7) alter database open
+
+Backup information is stored in control file
+
+
+Take RMAN Incremental Backup
+============================================
+Connect to the target DB and catalog. Take level 0 backup
+RMAN> backup incremental level 0 database plus archivelog;
+
+RMAN> list backup of database summary;
+RMAN> backup incremental level 1 database plus archivelog;
+
+
+Simulate Failure
+
+Delete all the datafiles from server
+SQL> select name from v$datafile;
+rm -rf <DF locations>
+
+
+Start Database Recovery
+Kill the DB instance, if running. You can do shut abort or kill pmon at OS level
+Start the DB instance and take it to Mount stage. Connect to RMAN and issue below command
+
+run
+{
+RESTORE DATABASE from tag TAG20170115T113749;
+RECOVER DATABASE from tag TAG20170115T114127;
+RECOVER DATABASE;
+sql 'ALTER DATABASE OPEN';
+}
+
+
+
+
+
+
+
+
+Query to check database backup
+============================================
+set linesize 500
+col BACKUP_SIZE for a20
+SELECT
+INPUT_TYPE "BACKUP_TYPE",
+--NVL(INPUT_BYTES/(1024*1024),0)"INPUT_BYTES(MB)",
+--NVL(OUTPUT_BYTES/(1024*1024),0) "OUTPUT_BYTES(MB)",
+STATUS,
+TO_CHAR(START_TIME,'MM/DD/YYYY:hh24:mi:ss') as START_TIME,
+TO_CHAR(END_TIME,'MM/DD/YYYY:hh24:mi:ss') as END_TIME,
+TRUNC((ELAPSED_SECONDS/60),2) "ELAPSED_TIME(Min)",
+--ROUND(COMPRESSION_RATIO,3)"COMPRESSION_RATIO",
+--ROUND(INPUT_BYTES_PER_SEC/(1024*1024),2) "INPUT_BYTES_PER_SEC(MB)",
+--ROUND(OUTPUT_BYTES_PER_SEC/(1024*1024),2) "OUTPUT_BYTES_PER_SEC(MB)",
+--INPUT_BYTES_DISPLAY "INPUT_BYTES_DISPLAY",
+OUTPUT_BYTES_DISPLAY "BACKUP_SIZE",
+OUTPUT_DEVICE_TYPE "OUTPUT_DEVICE"
+--INPUT_BYTES_PER_SEC_DISPLAY "INPUT_BYTES_PER_SEC_DIS",
+--OUTPUT_BYTES_PER_SEC_DISPLAY "OUTPUT_BYTES_PER_SEC_DIS"
+FROM V$RMAN_BACKUP_JOB_DETAILS
+where start_time > SYSDATE -10
+and INPUT_TYPE != 'ARCHIVELOG'
+ORDER BY END_TIME DESC
+/
+
+
+Query to check archivelog backup
+============================================
+set linesize 500
+col BACKUP_SIZE for a20
+SELECT 
+INPUT_TYPE "BACKUP_TYPE",
+--NVL(INPUT_BYTES/(1024*1024),0)"INPUT_BYTES(MB)",
+--NVL(OUTPUT_BYTES/(1024*1024),0) "OUTPUT_BYTES(MB)",
+STATUS,
+TO_CHAR(START_TIME,'MM/DD/YYYY:hh24:mi:ss') as START_TIME,
+TO_CHAR(END_TIME,'MM/DD/YYYY:hh24:mi:ss') as END_TIME,
+TRUNC((ELAPSED_SECONDS/60),2) "ELAPSED_TIME(Min)",
+--ROUND(COMPRESSION_RATIO,3)"COMPRESSION_RATIO",
+--ROUND(INPUT_BYTES_PER_SEC/(1024*1024),2) "INPUT_BYTES_PER_SEC(MB)",
+--ROUND(OUTPUT_BYTES_PER_SEC/(1024*1024),2) "OUTPUT_BYTES_PER_SEC(MB)",
+--INPUT_BYTES_DISPLAY "INPUT_BYTES_DISPLAY",
+OUTPUT_BYTES_DISPLAY "BACKUP_SIZE",
+OUTPUT_DEVICE_TYPE "OUTPUT_DEVICE"
+--INPUT_BYTES_PER_SEC_DISPLAY "INPUT_BYTES_PER_SEC_DIS",
+--OUTPUT_BYTES_PER_SEC_DISPLAY "OUTPUT_BYTES_PER_SEC_DIS"
+FROM V$RMAN_BACKUP_JOB_DETAILS
+where start_time > SYSDATE -10
+and INPUT_TYPE = 'ARCHIVELOG'
+ORDER BY END_TIME DESC
+/
