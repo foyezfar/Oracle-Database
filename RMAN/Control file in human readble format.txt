@@ -1,0 +1,32 @@
+SQL> ALTER DATABASE BACKUP CONTROLFILE TO TRACE ;
+
+[oracle@oracledb trace]$ tail -f /u01/app/oracle/diag/rdbms/orcl/orcl/trace/alert_orcl.log
+
+Backup controlfile written to trace file /u01/app/oracle/diag/rdbms/orcl/orcl/trace/orcl_ora_330.trc
+
+
+
+If no backup and control file is lost
+==========================================
+Below is oracle's example for CREATE CONTROLFILE. The first step in creating a new controlfile is to make a list of all datafiles and redo log files of the database. The redo log files will go in the LOGFILE section and the data files will go in the DATAFILE section.
+
+CREATE CONTROLFILE
+SET DATABASE orcl
+LOGFILE GROUP 1 ('/u01/oracle/prod/redo01_01.log', 
+                '/u01/oracle/prod/redo01_02.log'),
+       GROUP 2 ('/u01/oracle/prod/redo02_01.log', 
+                '/u01/oracle/prod/redo02_02.log')
+RESETLOGS
+DATAFILE '/u01/oracle/prod/system01.dbf' SIZE 3M,
+        '/u01/oracle/prod/rbs01.dbs' SIZE 5M,
+        '/u01/oracle/prod/users01.dbs' SIZE 5M,
+        '/u01/oracle/prod/temp01.dbs' SIZE 5M
+MAXLOGFILES 50
+MAXLOGMEMBERS 3
+MAXLOGHISTORY 400
+MAXDATAFILES 200
+MAXINSTANCES 6
+ARCHIVELOG;
+
+
+SMON will write the SCN to the CONTROLFILE
