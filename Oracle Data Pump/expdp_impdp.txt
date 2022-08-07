@@ -40,10 +40,6 @@ impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP logfile=imp_fullprod.log ful
 
 
 
-
-
-
-
 impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP dumpfile=hr_backup_30072022-16_32.dmp logfile=foyez_test_imp_schema.log 
 remap_schema='HR:FOYEZ' tables='HR.EMPLOYEES,HR.COUNTRIES'  REMAP_TABLESPACE=SYSAUX:FOYEZ encryption_password=123456
 
@@ -61,4 +57,10 @@ REMAP_TABLESPACE = src_ts:dest_ts				  - > REMAP_TABLESPACE=SYSAUX:FOYEZ
 
 
 
+direct=y if we use this parameter the DW(Data Pump Worker Process) will directly copy the buffers from the datafile otherwise buffers will first copy 
+to the database buffer cache and from there it will write to dumpfile, So it will unnecessarily use the database instance and the performance will
+be impact.
 
+
+DW(Data Pump Worker Process) -> The Data Pump worker process is responsible for performing tasks that are
+ assigned by the Data Pump master process, such as the loading and unloading of metadata and data.
