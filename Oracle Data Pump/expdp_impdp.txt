@@ -26,6 +26,11 @@ How know the tablespace used for a schema
 ====================================================
 select distinct tablespace_name from dba_segments where owner='FOYEZ';
 
+select distinct tablespace_name,round(sum(bytes)/(1024*1024),2) "Size in (MB)"
+from dba_segments
+where owner ='FOYEZ'
+group by tablespace_name;
+
 impdp EXP_IMP_DBA/123456@orclpdb DIRECTORY=DATAPUMP dumpfile=foyez_backup_27072022-12_14.dmp logfile=foyez_test_imp_schema.log remap_schema='FOYEZ:FOYEZ_TEST' REMAP_TABLESPACE=USERS:TEST,FOYEZ:TEST2 encryption_password=123456
 
 
