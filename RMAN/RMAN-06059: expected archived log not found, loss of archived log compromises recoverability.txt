@@ -1,0 +1,9 @@
+RMAN-06059: expected archived log not found, loss of archived log compromises recoverability
+
+
+Solution
+===========================================================
+RMAN> CROSSCHECK ARCHIVELOG ALL;
+
+RMAN> DELETE EXPIRED ARCHIVELOG ALL;
+
