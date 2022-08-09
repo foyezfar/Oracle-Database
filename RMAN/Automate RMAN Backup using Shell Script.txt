@@ -44,3 +44,5 @@ crontab -e
 
 00 10,16 * * * /u01/rman/full_backup.sh
 
+
+https://crontab.guru/
