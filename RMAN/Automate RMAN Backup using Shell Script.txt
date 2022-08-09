@@ -1,0 +1,46 @@
+Create directory structure
+
+mkdir -p /u01/rman
+
+Create RMAN backup script file
+======================================================
+Let us create the RMAN backup script file to trigger DB FULL backup
+
+vi /u01/rman/full_backup.sh
+
+#!/bin/bash
+
+. /home/oracle/.bash_profile
+
+export ORACLE_SID=proddb
+export ORACLE_HOME=/u01/app/oracle/product/12.2.0.1
+export DATE=$(date +%y-%m-%d_%H%M%S)
+
+rman target / log=/u01/rman/proddb_${DATE}.log << EOF
+run
+{
+allocate channel ch1 device type disk format '/u01/rman/proddb_full_bkp_%u';
+allocate channel ch2 device type disk format '/u01/rman/proddb_full_bkp_%u';
+crosscheck backup;
+delete noprompt obsolete;
+backup database;
+backup archivelog all delete input;
+release channel ch1;
+release channel ch2;
+}
+EOF
+
+
+Schedule Backup Under Crontab
+
+Give execute permissions on the shell script
+======================================================
+chmod 775 /u01/rman/full_backup.sh
+
+Now you can go ahead and schedule the backup under the crontab. For example, we are 
+scheduling backup to trigger at 10 am and 4 pm everyday
+
+crontab -e
+
+00 10,16 * * * /u01/rman/full_backup.sh
+
