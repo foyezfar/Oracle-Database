@@ -1,0 +1,15 @@
+Startup process
+=========================================
+On Secondary
+==============================================
+startup mount
+alter database recover managed standby database disconnect;
+
+
+
+Shutdown process
+=========================================
+On Secondary
+==============================================
+alter database recover managed standby database cancel;
+shut immediate;
