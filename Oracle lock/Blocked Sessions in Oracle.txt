@@ -1,0 +1,129 @@
+Oracle locking mechanism keeps database objects isolated from accidental changes by multiple users at a given point of time. 
+Locks are good and this helps keep data consistent inside database. 
+
+Create Database Lock
+====================================================================
+Let us create a simple lock inside database and try to create a lock situation
+
+create table lock_test(
+  id# number primary key,
+  value varchar2(20)
+);
+
+insert into lock_test values (1, 'Insert lock test');
+
+Open a new session and try to run the same INSERT command
+-- run it in a new session
+SQL> insert into lock_test values (1, 'Insert lock test');
+
+Note:
+In session 1, we did not commit the transaction
+Session 2 is trying to insert a record with same primary key value
+Session 2 goes on waiting until session 1 issues COMMIT / ROLLBACK
+
+
+
+Find Blocked Sessions
+====================================================================
+Open a new sessions and run below query to find Blocking and Blocked session
+
+select a.SID "Blocking Session", b.SID "Blocked Session"  
+from v$lock a, v$lock b 
+where a.SID != b.SID and a.ID1 = b.ID1  and a.ID2 = b.ID2 and 
+b.request > 0 and a.block = 1;
+
+
+Another query that can help you with finding the blocking and blocked sessions
+
+col blocking_status for a120;
+select s1.username || '@' || s1.machine
+ || ' ( SID=' || s1.sid || ' ) is blocking '
+ || s2.username || '@' || s2.machine 
+ || ' ( SID=' || s2.sid || ' ) ' AS blocking_status
+ from v$lock l1, v$session s1, v$lock l2, v$session s2
+ where s1.sid=l1.sid and s2.sid=l2.sid
+ and l1.BLOCK=1 and l2.request > 0
+ and l1.id1 = l2.id1
+ and l2.id2 = l2.id2 ;
+ 
+
+Find Lock Wait Time
+====================================================================
+To find how long the blocked session is waiting (in minutes)
+
+SELECT 
+  blocking_session "BLOCKING_SESSION",
+  sid "BLOCKED_SESSION",
+  serial# "BLOCKED_SERIAL#", 
+  seconds_in_wait/60 "WAIT_TIME(MINUTES)"
+FROM v$session
+WHERE blocking_session is not NULL
+ORDER BY blocking_session;
+
+
+
+Find Blocked SQL
+====================================================================
+To check what SQL is being run by the BLOCKED SESSION inside the database OR which SQL command is waiting
+
+SELECT SES.SID, SES.SERIAL# SER#, SES.PROCESS OS_ID, SES.STATUS, SQL.SQL_FULLTEXT
+FROM V$SESSION SES, V$SQL SQL, V$PROCESS PRC
+WHERE
+   SES.SQL_ID=SQL.SQL_ID AND
+   SES.SQL_HASH_VALUE=SQL.HASH_VALUE AND 
+   SES.PADDR=PRC.ADDR AND
+   SES.SID=&Enter_blocked_session_SID;
+
+
+
+Find Locked Table
+====================================================================
+Run below query to find the table locked, table owner, lock type and other details
+
+col session_id head 'Sid' form 9999
+col object_name head "Table|Locked" form a30
+col oracle_username head "Oracle|Username" form a10 truncate 
+col os_user_name head "OS|Username" form a10 truncate 
+col process head "Client|Process|ID" form 99999999
+col owner head "Table|Owner" form a10
+col mode_held form a15
+select lo.session_id,lo.oracle_username,lo.os_user_name,
+lo.process,do.object_name,do.owner,
+decode(lo.locked_mode,0, 'None',1, 'Null',2, 'Row Share (SS)',
+3, 'Row Excl (SX)',4, 'Share',5, 'Share Row Excl (SSX)',6, 'Exclusive',
+to_char(lo.locked_mode)) mode_held
+from gv$locked_object lo, dba_objects do
+where lo.object_id = do.object_id
+order by 5
+/
+
+
+Resolving Locks in Oracle
+====================================================================
+As per Oracle, the blocked (or waiting) session will continue to wait until
+
+1.Blocking session issues a COMMIT
+2.Blocking session issues a ROLLBACK
+3.Blocking session disconnects from the database
+
+
+Use below query to kill a session inside Oracle
+====================================================================
+SQL> alter system kill session '38,4245';
+
+--actual syntax
+SQL> alter system kill session 'SID,Serial#';
+
+If you don’t know the serial# then query v$session
+SQL> select serial# from v$session where SID=38';
+
+OR
+
+SELECT 
+'alter system kill session ''' || SID || ',' || s.serial# || ',@'||inst_id||''';' DDL,sid,username,serial#,process,NVL (sql_id, 0),
+sql_address,blocking_session,wait_class,event,p1,p2,p3,seconds_in_wait
+FROM gv$session s WHERE blocking_session_status = 'VALID'
+OR sid IN (SELECT blocking_session
+FROM gv$session WHERE blocking_session_status = 'VALID');
+
+
