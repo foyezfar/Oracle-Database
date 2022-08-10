@@ -1,0 +1,20 @@
+
+Control File Muliplex
+===================================================================
+SQL> show parameter control_files;
+
+[oracle@localhost backup]$ cp /u01/app/oracle/oradata/DB11G/control01.ctl . 
+				[copy controlfile to current location(. is used)] 
+[oracle@localhost backup]$ mv control01.ctl control03.ctl  [rename]
+
+SQL> shutdown immediate;
+SQL> alter system set control_files ='/u01/app/oracle/oradata/DB11G/control01.ctl',
+				     '/u01/app/oracle/fast_recovery_area/DB11G/control02.ctl',
+				     '/u01/app/oracle/backup/control03.ctl' scope=spfile;
+
+SQL> startup open;
+
+SQL> alter database backup controlfile to '/u01/app/oracle/backup/control.bkp';
+
+
+
