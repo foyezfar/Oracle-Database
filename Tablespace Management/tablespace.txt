@@ -1,0 +1,47 @@
+ps -ef | grep pmon
+env | grep ORA
+
+SQL> select name,open_mode from v$database;
+
+
+Find Tablespace & Associated Data Files
+======================================================
+select name from v$tablespace;
+select tablespace_name from dba_tablespaces;
+
+SYSTEM	 	-> Metadata
+SYSAUX 		-> DB performance tables [Reporting tablespace]
+UNDOTBS1	-> store undo data [old values]
+TEMP 		-> Uses for sorting data
+USERS 		-> User table will be stored
+
+
+To find datafiles associated with tablespace
+======================================================
+select tablespace_name, file_name, bytes/1024/1024 "Size (MB)"  from dba_data_files;
+select file_name, bytes/1024/1024 from dba_temp_files;
+
+
+
+Create Tablespace
+
+SQL> Create tablespace test_tbs datafile '/u01/test_tbs_01.dbf' size 50m;
+
+
+
+Use below command to resize a datafile
+
+SQL> Alter database datafile '/u01/test_tbs_01.dbf' resize 100m;
+
+Use below command to add new datafile to tablespace
+
+SQL> Alter tablespace test_tbs add datafile '/u01/test_tbs_02.dbf' size 50m;
+
+Drop Tablespace
+
+Below command will drop tablespace including all its contents and associated datafiles
+
+SQL> drop tablespace test_tbs including contents and datafiles;
+
+
+https://www.support.dbagenesis.com/post/tablespace-administration
