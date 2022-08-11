@@ -1,0 +1,32 @@
+What resetlogs will do?
+==========================================================================
+Reinitializes the control file metadata about online redo logs and redo threads.
+
+Updates all current datafiles and online redo logs and all subsequent archived redo logs with a new RESETLOGS SCN and time stamp.
+
+Create new redolog files at OS level (location and size will be taken from controlfile) if not already existing
+
+Resets the log seq number (LSN) to 1, 2, 3 etc for the created files
+
+Whenever database is opened with resetlogs option, we will say database entered into new incarnation. 
+If database is in new incarnation, the backups which were taken till now are no more useful. 
+So, whenever we perform an incomplete recovery we need to take full backup of database immediately.
+
+We can find the prev incarnation information of a database from below query
+SQL> select resetlogs_change#,resetlogs_time from v$database;
+
+
+alter database resetlogs is always required when:
+- restoring from a backup controlfile (it does not have information about latest SCN)
+- incomplete recovery (you cannot use current redologs or redo logs are unavailable)
+
+
+
+SQL> alter database open resetlogs;  
+
+
+At incomplete recovery the controlfile is not in sync with the datafile headers.
+What does resetlogs do, apart from resetting the log sequence to 1 (so it does not reset the SCN to 1):
+
+Sync the controlfile with the datafile headers!!!!
+If you wouldn't do that, you wouldn't even be capable to open the database, as controlfile and datafile headers should always be in sync.
