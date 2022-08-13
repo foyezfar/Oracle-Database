@@ -69,3 +69,28 @@ be impact.
 
 DW(Data Pump Worker Process) -> The Data Pump worker process is responsible for performing tasks that are
  assigned by the Data Pump master process, such as the loading and unloading of metadata and data.
+
+Recompiling Invalid Schema Objects
+===================================================================
+COLUMN object_name FORMAT A30
+SELECT owner,
+       object_type,
+       object_name,
+       status
+FROM   dba_objects
+WHERE  status = 'INVALID'
+ORDER BY owner, object_type, object_name;
+
+-- Schema level.
+EXEC UTL_RECOMP.recomp_serial('SCOTT');
+EXEC UTL_RECOMP.recomp_parallel(4, 'SCOTT');
+
+-- Database level.
+EXEC UTL_RECOMP.recomp_serial();
+EXEC UTL_RECOMP.recomp_parallel(4);
+
+The COMPILE_SCHEMA procedure in the DBMS_UTILITY package compiles all procedures, functions,
+packages, and triggers in the specified schema
+===================================================================
+EXEC DBMS_UTILITY.compile_schema(schema => 'SCOTT', compile_all => false);
+
