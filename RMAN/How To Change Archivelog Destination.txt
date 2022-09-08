@@ -1,0 +1,23 @@
+How To Change Archivelog Destination In Oracle
+============================================================
+1. Find the current archivelog location:
+SQL> archive log list;
+SQL>  select destination,STATUS from v$archive_dest where statuS='VALID';
+
+create the new archive location:
+mkdir -p /u01/arch
+change the destination:
+SQL> alter system set log_archive_dest_1='LOCATION=/u01/arch' scope=both;
+
+SQL> archive log list
+
+SQL> alter system switch logfile;
+
+
+
+
+
+
+
+
+https://dbaclass.com/article/change-archivelog-destination-oracle/
