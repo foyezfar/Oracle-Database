@@ -1,0 +1,219 @@
+[root@localhost ~]# cat /etc/hostname
+
+Set the correct hostname in the "/etc/hostname" file.
+
+[root@localhost ~]# vim /etc/hostname
+
+192.168.26.137 localhost.localdomain RedhatLinux7
+
+
+Add the following lines to the "/etc/sysctl.conf" file, or in a file called "/etc/sysctl.d/98-oracle.conf".
+
+[root@localhost ~]# vim /etc/sysctl.d/98-oracle.conf
+
+fs.file-max = 6815744
+kernel.sem = 250 32000 100 128
+kernel.shmmni = 4096
+kernel.shmall = 1073741824
+kernel.shmmax = 4398046511104
+kernel.panic_on_oops = 1
+net.core.rmem_default = 262144
+net.core.rmem_max = 4194304
+net.core.wmem_default = 262144
+net.core.wmem_max = 1048576
+net.ipv4.conf.all.rp_filter = 2
+net.ipv4.conf.default.rp_filter = 2
+fs.aio-max-nr = 1048576
+net.ipv4.ip_local_port_range = 9000 65500
+
+Run one of the following commands to change the current kernel parameters, depending on which file you edited.
+
+[root@localhost ~]#  /sbin/sysctl -p
+
+Add the following lines to a file called "/etc/security/limits.conf" file.
+
+[root@localhost ~]# vim /etc/security/limits.conf
+
+oracle   soft   nofile    1024
+oracle   hard   nofile    65536
+oracle   soft   nproc    16384
+oracle   hard   nproc    16384
+oracle   soft   stack    10240
+oracle   hard   stack    32768
+oracle   hard   memlock    134217728
+oracle   soft   memlock    134217728
+
+
+
+yum configure
+-------------------------
+1.copy packages to a specific folder
+
+[root@localhost ~]# cd /etc/yum.repos.d
+[root@localhost yum.repos.d]# ls
+[root@localhost yum.repos.d]# mv *.repo old
+[root@localhost yum.repos.d]# vim server.repo
+[server]
+name = yum server
+baseurl = file:///root/Packages 
+enabled = 1
+gpgcheck = 0
+
+:x (save and exit)
+
+[root@localhost yum.repos.d]# createrepo -v /root/Packages
+[root@localhost yum.repos.d]# yum clean all 
+[root@localhost yum.repos.d]# yum list all   
+
+
+
+
+The following packages are listed as required, including the 32-bit version of some of the packages.
+Many of the packages should be installed already.
+-----------------------------------
+yum install binutils -y
+yum install compat-libcap1 -y
+yum install compat-libstdc++-33 -y
+yum install compat-libstdc++-33.i686 -y
+yum install glibc -y
+yum install glibc.i686 -y
+yum install glibc-devel -y
+yum install glibc-devel.i686 -y
+yum install ksh -y
+yum install libaio -y
+yum install libaio.i686 -y
+yum install libaio-devel -y
+yum install libaio-devel.i686 -y
+yum install libX11 -y
+yum install libX11.i686 -y
+yum install libXau -y
+yum install libXau.i686 -y
+yum install libXi -y
+yum install libXi.i686 -y
+yum install libXtst -y
+yum install libXtst.i686 -y
+yum install libgcc -y
+yum install libgcc.i686 -y
+yum install libstdc++ -y
+yum install libstdc++.i686 -y
+yum install libstdc++-devel -y
+yum install libstdc++-devel.i686 -y
+yum install libxcb -y
+yum install libxcb.i686 -y
+yum install make -y
+yum install nfs-utils -y
+yum install net-tools -y
+yum install smartmontools -y
+yum install sysstat -y
+yum install unixODBC -y
+yum install unixODBC-devel -y
+
+# Required for 12.1, not listed for 12.2
+yum install gcc -y
+yum install gcc-c++ -y
+yum install libXext -y
+yum install libXext.i686 -y
+yum install zlib-devel -y
+yum install zlib-devel.i686 -y
+
+# OL6 only (RHEL6 only)
+yum install e2fsprogs -y
+yum install e2fsprogs-libs -y
+yum install libs -y
+yum install libxcb.i686 -y
+yum install libxcb -y
+
+
+yum install gcc-c++
+
+
+Create the new groups and users.
+-----------------------------------------------
+[root@localhost ~]# groupadd -g 54321 oinstall
+[root@localhost ~]# groupadd -g 54322 dba
+[root@localhost ~]# groupadd -g 54323 oper
+[root@localhost ~]# useradd -u 54321 -g oinstall -G dba,oper oracle
+
+
+Set the password for the "oracle" user.
+
+[root@localhost ~]# passwd oracle
+
+Set secure Linux to permissive by editing the "/etc/selinux/config" file, making sure the SELINUX flag is set as follows.
+
+[root@localhost ~]# vim /etc/selinux/config
+
+SELINUX=permissive
+Once the change is complete, restart the server or run the following command.
+
+[root@localhost ~]# setenforce Permissive
+
+If you have the Linux firewall enabled, you will need to disable or configure it,
+ as shown here or here. To disable it, do the following.
+
+[root@localhost ~]# systemctl stop firewalld
+[root@localhost ~]# systemctl disable firewalld
+
+mkdir -p /u01/app/oracle/product/12.2.0.1/db_1
+chown -R oracle:oinstall /u01
+chmod -R 775 /u01
+
+
+[root@localhost ~]# mkdir /home/oracle/scripts
+
+cat > /home/oracle/scripts/setEnv.sh <<EOF
+# Oracle Settings
+export TMP=/tmp
+export TMPDIR=\$TMP
+
+export ORACLE_HOSTNAME=localhost.localdomain
+export ORACLE_UNQNAME=cdb1
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_HOME=\$ORACLE_BASE/product/12.2.0.1/db_1
+export ORACLE_SID=cdb1
+
+export PATH=/usr/sbin:/usr/local/bin:\$PATH
+export PATH=\$ORACLE_HOME/bin:\$PATH
+
+export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
+EOF
+
+--Add a reference to the "setEnv.sh" file at the end of the "/home/oracle/.bash_profile" file.
+
+echo ". /home/oracle/scripts/setEnv.sh" >> /home/oracle/.bash_profile
+
+
+cat > /home/oracle/scripts/start_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbstart \$ORACLE_HOME
+EOF
+
+
+cat > /home/oracle/scripts/stop_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbshut \$ORACLE_HOME
+EOF
+
+
+
+chown -R oracle.oinstall /home/oracle/scripts
+chmod u+x /home/oracle/scripts/*.sh
+
+
+Once the installation is complete and you've edited the "/etc/oratab", you should be able to start/stop the database with the following scripts run from the "oracle" user.
+
+~/scripts/start_all.sh
+~/scripts/stop_all.sh
