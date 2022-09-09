@@ -1,0 +1,29 @@
+SQL> ALTER DATABASE FLASHBACK OFF;
+SQL> ALTER DATABASE FLASHBACK ON;
+SQL> ALTER SYSTEM SWITCH LOGFILE;
+
+
+SQL> alter system set log_archive_dest_1='LOCATION=/u01/arc_dest' scope=both;
+SQL> archive log list;
+
+
+
+[oracle@oracledb]$ rman target /
+
+RMAN> show all;
+RMAN> configure controlfile autobackup format for device type disk to '/u01/rman_bkp/%F';
+RMAN> CONFIGURE CHANNEL DEVICE TYPE DISK FORMAT   '/u01/rman_bkp/orcl_db_%T_%t_%s';
+RMAN> CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 7 DAYS;  [after 7 days backup will be obsolute]
+RMAN> CONFIGURE RETENTION POLICY TO REDUNDANCY 1; [Only keep one backup]
+
+%t	Backup set timestamp. 
+%s to provide unique name
+%T	Date (YYYYMMDD)
+%u	Short system generated file name. See below
+%F - Generates a name in the format c-IIIIIIIIII-YYYYMMDD-QQ where:
+	IIIIIIIIII is the DBID
+	YYYYMMDD is a timestamp
+	QQ is the sequence number in hexadecimal
+	
+RMAN> backup database plus archivelog;	
+RMAN> list backup of database summary;
