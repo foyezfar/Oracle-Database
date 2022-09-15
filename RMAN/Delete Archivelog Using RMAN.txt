@@ -1,0 +1,33 @@
+How to Delete Archivelog Using RMAN in Oracle
+==========================================
+Archivelog List Commands:
+list archivelog all; 
+list copy of archivelog until time 'SYSDATE-1'; 
+list copy of archivelog from time 'SYSDATE-1'; 
+list copy of archivelog from time 'SYSDATE-1' until time 'SYSDATE-2'; 
+list copy of archivelog from sequence 1000; 
+list copy of archivelog until sequence 1500; 
+list copy of archivelog from sequence 1000 until sequence 1500;
+
+Archivelog Delete Commands:
+delete archivelog all;
+delete archivelog until time 'SYSDATE-1'; 
+delete archivelog from time 'SYSDATE-1'; 
+delete archivelog from time 'SYSDATE-1' until time 'SYSDATE-2'; 
+delete archivelog from sequence 1000; 
+delete archivelog until sequence 1500; 
+delete archivelog from sequence 1000 until sequence 1500; 
+
+
+Note : Use noprompt to avoid being prompted for each file
+
+delete noprompt archivelog until time 'SYSDATE-1';
+
+
+
+Manual delete from OS
+==========================================
+After delete
+RMAN> CROSSCHECK ARCHIVELOG ALL;
+RMAN> DELETE EXPIRED ARCHIVELOG ALL;
+RMAN> list archivelog all;
