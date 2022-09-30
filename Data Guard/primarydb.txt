@@ -246,6 +246,11 @@ LISTENER =
 SID_LIST_LISTENER =
   (SID_LIST =
     (SID_DESC =
+      (GLOBAL_DBNAME = prm)
+      (ORACLE_HOME = /u01/app/oracle/product/12.2.0.1/dbhome_1)
+      (SID_NAME = prm)
+    )
+    (SID_DESC =
       (GLOBAL_DBNAME = prm_DGMGRL)
       (ORACLE_HOME = /u01/app/oracle/product/12.2.0.1/dbhome_1)
       (SID_NAME = prm)
