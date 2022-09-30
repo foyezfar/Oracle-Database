@@ -146,6 +146,11 @@ LISTENER =
 SID_LIST_LISTENER =
   (SID_LIST =
     (SID_DESC =
+      (GLOBAL_DBNAME = sec)
+      (ORACLE_HOME = /u01/app/oracle/product/12.2.0.1/dbhome_1)
+      (SID_NAME = sec)
+    )
+    (SID_DESC =
       (GLOBAL_DBNAME = sec_DGMGRL)
       (ORACLE_HOME = /u01/app/oracle/product/12.2.0.1/dbhome_1)
       (SID_NAME = sec)
