@@ -1,0 +1,69 @@
+Create a "scripts" directory.
+================================================
+mkdir /home/oracle/scripts
+
+cat > /home/oracle/scripts/setEnv.sh <<EOF
+# Oracle Settings
+export TMP=/tmp
+export TMPDIR=\$TMP
+
+export ORACLE_HOSTNAME=oracledb
+export ORACLE_UNQNAME=orcl
+export ORACLE_BASE=/u01/app/oracle
+export ORACLE_HOME=\$ORACLE_BASE/product/11.2.0/db_1
+export ORACLE_SID=orcl
+
+export PATH=/usr/sbin:/usr/local/bin:\$PATH
+export PATH=\$ORACLE_HOME/bin:\$PATH
+
+export LD_LIBRARY_PATH=\$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=\$ORACLE_HOME/jlib:\$ORACLE_HOME/rdbms/jlib
+EOF
+
+
+
+cat > /home/oracle/scripts/start_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbstart \$ORACLE_HOME
+EOF
+
+
+cat > /home/oracle/scripts/stop_all.sh <<EOF
+#!/bin/bash
+. /home/oracle/scripts/setEnv.sh
+
+export ORAENV_ASK=NO
+. oraenv
+export ORAENV_ASK=YES
+
+dbshut \$ORACLE_HOME
+EOF
+
+chown -R oracle.oinstall /home/oracle/scripts
+chmod u+x /home/oracle/scripts/*.sh
+
+
+Edit the "/etc/oratab" file setting the restart flag for each instance to 'Y'.
+================================================
+orcl:/u01/app/oracle/product/12.2.0.1/db_1:Y
+
+
+[oracle@oracledb ~]$ vim $ORACLE_HOME/network/admin/sqlnet.ora
+NAMES.DIRECTORY_PATH= (TNSNAMES, EZCONNECT)
+#SQLNET.AUTHENTICATION_SERVICES = (NONE)
+ADR_BASE = /u01/app/oracle
+
+
+
+[oracle@oracledb ~]$ crontab -l
+@reboot /home/oracle/scripts/start_all.sh
+
+
+
+[oracle@oracledb ~]$ cat /u01/app/oracle/product/11.2.0/db_1/startup.log
