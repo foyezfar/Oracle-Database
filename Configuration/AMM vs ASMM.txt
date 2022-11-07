@@ -1,0 +1,104 @@
+How do I check if AMM is enabled?
+memory_target (starting in 11g): If memory_target is set, then AMM is enabled: If memory_target is set to non zero value and 
+: sga_target, sga_max_size and pga_aggregate_target are set to 0, then 60% of memory mentioned in memory_target is allocated 
+to SGA and rest 40% is kept for PGA.
+
+
+
+
+
+
+
+
+SQL> select sum(bytes/1024/1024) Current_SGA_SIZE_in_MB from v$sgastat;
+CURRENT_SGA_SIZE_IN_MB
+----------------------
+        904.844437
+SQL> select sum(bytes/1024/1024) MAX_SGA_SIZE_in_MB from  v$sgainfo    where name = 'Maximum SGA Size';
+MAX_SGA_SIZE_IN_MB
+------------------
+    1592.84766
+SQL> show parameter memory_max_target;
+NAME                     TYPE     VALUE
+------------------------------------ ----------- ------------------------------
+memory_max_target             big integer 1600M
+SQL> select (value/1024/1024) Current_PGA_IN_USE_in_MB from v$pgastat where name = 'total PGA inuse';
+CURRENT_PGA_IN_USE_IN_MB
+------------------------
+          122.085938
+SQL> select (value/1024/1024) MAX_PGA_ALLOCATED_in_MB from v$pgastat where name = 'maximum PGA allocated';
+MAX_PGA_ALLOCATED_IN_MB
+-----------------------
+         167.658203
+SQL> select (value/1024/1024) PGA_TARGET_in_MB    from v$pgastat where name = 'aggregate PGA target parameter';
+PGA_TARGET_IN_MB
+----------------
+         480
+Our current AMM uses the following memory
+ - memory reserved  for PGA/SGA: 1600 MByte 
+ - current PGA size 120 MB
+ - current SGA size 904 MB
+ - free memory for future PGA/SGA usage: ~ 600 MByte
+
+For switching ASMM this can be translated into 
+  SGA_MAX_SIZE             : 1400 MByte
+  SGA_TARGET               : 1000 MByte
+  PGA_AGGREGATE_TARGET     :  480 Mbyte
+
+For further tuning check : V$PGA_TARGET_ADVICE
+
+Execute the  following commands.
+Disable AMM
+  SQL> alter system reset memory_max_target scope=spfile  sid='*';
+  SQL> alter system reset memory_target  scope=spfile  sid='*';
+
+Enable ASMM
+  SQL> alter system set SGA_MAX_SIZE=1400m scope=spfile  sid='*';
+  SQL> alter system set SGA_TARGET=1000m scope=spfile  sid='*'; 
+  SQL> alter system set PGA_AGGREGATE_TARGET=480m scope=spfile  sid='*';  
+
+Reboot database and verify that we have switched from AMM to ASMM
+SQL> show parameter memory
+NAME                     TYPE     VALUE
+------------------------------------ ----------- ------------------------------
+memory_max_target             big integer 0
+memory_target                 big integer 0
+--> AMM disabled 
+
+SQL> show parameter sga
+NAME                     TYPE          VALUE
+------------------------ ----------- ------------------------------
+sga_max_size             big integer 1408M
+sga_target               big integer 912M
+
+SQL> show parameter pga
+NAME                     TYPE     VALUE
+------------------------ ----------- ------------------------------
+pga_aggregate_target     big integer 480M
+
+--> ASMM enabled !
+
+
+
+
+
+Review impact on OS resources after switchging for AMM to ASMM
+The switch from AMM to ASMM frees space in /dev/shm but allocates shared memomry for the SGA
+$ ipcs -m
+------ Shared Memory Segments --------
+key        shmid      owner      perms      bytes      nattch     status                             
+0x00000000 3145746    oracle     640        16777216   41                      
+0x00000000 3178515    oracle     640        1459617792 41                      
+0xe1106fe8 3211284    oracle     640        2097152    41                      
+
+$ df -h
+Filesystem            Size  Used Avail Use% Mounted on
+tmpfs                 2.0G  200M  1.9G  10% /dev/shm
+
+
+
+
+
+
+
+https://www.hhutzler.de/blog/switching-from-automatic-memory-management-amm-to-automatic-shared-memory-management-asmm/
