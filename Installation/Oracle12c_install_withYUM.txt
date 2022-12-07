@@ -1,3 +1,6 @@
+[root@localhost ~]# hostnamectl set-hostname 'node1'
+[root@localhost ~]# hostnamectl
+
 [root@localhost ~]# cat /etc/hostname
 
 Set the correct hostname in the "/etc/hostname" file.
