@@ -1,0 +1,38 @@
+Pre-Requisites
+	Seperate OEL server with only oracle installed
+	
+Active Flow
+	Take source backup
+	Move pfile, controlfile, backup pieces to target server
+	Start the instance in mount stage and restore from backup pieces
+	Open the DB 
+	
+Trigger backup on source
+	RMAN> backup database plus archivelog;
+
+Move files to the target server
+	1. The parameter file.
+		[oracle@foyezdba dbs]$ scp initorcl.ora oracle@192.168.0.101:$ORACLE_HOME/dbs
+		create a directory and copy controlfile, archivelog backup and archivelogs []
+	2. Create directories as per new pfile.
+		[oracle@ninjadba dbs]$ 
+	3. Restore Controlfile from RMAN backup
+		[oracle@ninjadba ~]$ rman target /
+		RMAN> restore controlfile from '/u02/bkp_location/controlfile_bkpc-1651381726-20221216-00';
+	4. After the restoration of controlfile now mount the Database
+		RMAN> alter database mount;	
+	5. Make the Control File Aware of the Location of the RMAN Backups
+		RMAN> catalog start with '/u02/bkp_location/';
+		CATALOG command to make the control file aware of the location and names of the backup pieces that were copied to the destination server.
+	6. After the catalog, start the restoration of the database.
+		RMAN> restore database;
+		RMAN> recover database; / recover database until scn 1526921; [get the scn while full backup was taken/RMAN> list backup of database;]
+		RMAN> alter database open resetlogs;
+		RMAN> exit
+		
+SQL> select name,open_mode from v$database;
+
+
+
+
+
