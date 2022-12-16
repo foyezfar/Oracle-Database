@@ -1,0 +1,152 @@
+Pre-Requisites
+	Seperate OEL server with only oracle installed
+	
+Active Flow
+	Take source backup
+	Move pfile, controlfile, backup pieces to target server
+	Start the instance in mount stage and restore from backup pieces
+	Open the DB as source SID
+	Rename the DB
+	
+Trigger backup on source
+	RMAN> backup database plus archivelog;
+	RMAN> restore controlfile to '/tmp/orcl_control.ctl';
+
+Move files to the target server
+	1. The parameter file.
+		[oracle@foyezdba dbs]$ scp initorcl.ora oracle@192.168.0.101:$ORACLE_HOME/dbs
+		
+	2. Edit the pfile. Change sid except the db_name parameter.
+		[oracle@ninjadba dbs]$ vim initorcl.ora
+			:%s/orcl/testdb/g
+			*.db_name='orcl' [remains same, we will change later]
+			
+	3. Create directories as per new pfile.
+		[oracle@ninjadba dbs]$ mkdir -p /u01/app/oracle/admin/testdb/adump /u01/app/oracle/oradata/testdb/ /u01/app/oracl_area/testdb/ /u01/app/oracle/recovery_area
+	
+	4. scp the /tmp/orcl_control.ctl to the target server control file location
+		[oracle@foyezdba tmp]$ scp orcl_control.ctl oracle@192.168.0.101:/u01/app/oracle/oradata/testdb/control01.ctl
+		[oracle@foyezdba tmp]$ scp orcl_control.ctl oracle@192.168.0.101:/u01/app/oracle/recovery_area/orcl/control02.ctl
+		
+		OR
+		RMAN> restore controlfile from '/u02/bkp_location/controlfile_bkpc-1651381726-20221216-00'; [from control file backup]
+		
+	5. Database backup pieces -> same location as source
+		[oracle@foyezdba ~]$ rman target /
+		RMAN> list backup of database summary;
+		RMAN> list backup tag TAG20221216T214916;
+		[oracle@foyezdba ~]$ cd /u01/app/oracle/fast_recovery_area/orcl/ORCL/backupset/2022_12_16/
+			On target server create the location
+				[oracle@ninjadba ~]$ mkdir -p /u01/app/oracle/fast_recovery_area/orcl/ORCL/backupset/2022_12_16/
+		[oracle@foyezdba 2022_12_16]$ scp o1_mf_nnndf_TAG20221214T215805_ksmwoqn0_.bkp oracle@192.168.0.101:/u01/app/oracle/fast_recovery_area/orcl/ORCL/backupset/2022_12_16/
+	
+	6. Archive backup pieces -> same location as source [From backup output]
+		[oracle@foyezdba 2022_12_16]$ scp o1_mf_annnn_TAG20221214T215902_ksmwp6w1_.bkp  o1_mf_annnn_TAG20221214T215757_ksmwn5tf_.bkp o1_mf_nnndf_TAG20221214T215805_ksmwnf8o_.bkp oracle@192.168.0.101:/u01/app/oracle/fast_recovery_area/orcl/ORCL/backupset/2022_12_16
+
+		
+Start the cloning
+	1. Export environment variable and connect to rman 
+		[oracle@ninjadba ~]$ env | grep ORA
+		[oracle@ninjadba ~]$ rman target /
+		RMAN> startup mount;
+	2. Get the latest scn available in the archivelog backup
+		RMAN> list backup of archivelog all;
+	3. Rename the DB redologfiles so that they can be created in new location
+		SQL> select member from v$logfile;
+		SQL> alter database rename file '/u01/app/oracle/oradata/orcl/redo01.log' to '/u01/app/oracle/oradata/testdb/redo01.log';
+		SQL> alter database rename file '/u01/app/oracle/oradata/orcl/redo02.log' to '/u01/app/oracle/oradata/testdb/redo02.log';
+		SQL> alter database rename file '/u01/app/oracle/oradata/orcl/redo03.log' to '/u01/app/oracle/oradata/testdb/redo03.log';
+
+Restore the datafile to new location
+	SQL> column name format a50
+	SQL> set linesize 300
+	SQL> select file#,name from v$datafile;
+
+run {
+	set newname for datafile   1 to '/u01/app/oracle/oradata/testdb/system01.dbf';
+    set newname for datafile   3 to '/u01/app/oracle/oradata/testdb/sysaux01.dbf';
+    set newname for datafile   4 to '/u01/app/oracle/oradata/testdb/undotbs01.dbf';
+	restore database from tag TAG20221216T214916;
+	switch datafile all;
+	recover database until scn 1423277;          [from RMAN> list backup of archivelog all;]
+	alter database open resetlogs;
+}
+
+SQL> select name,open_mode from v$database;
+
+If fail 
+==================================================================
+RMAN> select group#, first_change#, status, archived from v$log;
+
+    GROUP# FIRST_CHANGE# STATUS           ARC
+---------- ------------- ---------------- ---
+         1       1453753 ACTIVE           YES
+         3       1423295 ACTIVE           YES
+         2       1453762 CURRENT          NO
+		 
+RMAN> recover database until scn 1423295;
+RMAN> alter database open resetlogs;
+
+
+
+Rename the Database
+==================================================================
+1. Generate a trace file that contains the SQL command to recreate the control files:
+	SQL> alter database backup controlfile to trace as '/tmp/ctlfile.sql' resetlogs;
+2.Shut down the database
+	SQL> shutdown immediate;
+3. Create pfile for new database id
+	[oracle@ninjadba ~]$ cd $ORACLE_HOME/dbs
+	[oracle@ninjadba dbs]$ mv initorcl.ora inittestdb.ora -> [init(newdb name).ora]
+	[oracle@ninjadba dbs]$ vim inittestdb.ora
+		*.db_name='testdb'  ->  [change it to new db name]
+	[oracle@ninjadba dbs]$ export ORACLE_SID=TESTDB
+	
+3. Edit the controlfile in trace location with new SID
+[oracle@ninjadba testdb]$ cat /tmp/ctlfile.sql
+	CREATE CONTROLFILE REUSE DATABASE "ORCL" RESETLOGS  ARCHIVELOG
+		MAXLOGFILES 16
+		MAXLOGMEMBERS 3
+		MAXDATAFILES 100
+		MAXINSTANCES 8
+		MAXLOGHISTORY 292
+	LOGFILE
+	  GROUP 1 '/u01/app/oracle/oradata/testdb/redo01.log'  SIZE 200M BLOCKSIZE 512,
+	  GROUP 2 '/u01/app/oracle/oradata/testdb/redo02.log'  SIZE 200M BLOCKSIZE 512,
+	  GROUP 3 '/u01/app/oracle/oradata/testdb/redo03.log'  SIZE 200M BLOCKSIZE 512
+	-- STANDBY LOGFILE
+	DATAFILE
+	  '/u01/app/oracle/oradata/testdb/system01.dbf',
+	  '/u01/app/oracle/oradata/testdb/sysaux01.dbf',
+	  '/u01/app/oracle/oradata/testdb/undotbs01.dbf',
+	  '/u01/app/oracle/oradata/testdb/users01.dbf'
+	CHARACTER SET AL32UTF8
+	;
+	
+	- Remove REUSE and put SET
+	- Change the SID
+	- Remove old controlfile;
+		[oracle@ninjadba tmp]$ cd $ORACLE_HOME/dbs
+		[oracle@ninjadba dbs]$ cat inittestdb.ora
+		[oracle@ninjadba dbs]$ rm -rf /u01/app/oracle/oradata/testdb/control01.ctl /u01/app/oracle/fast_recovery_area/testdb/control02.ctl
+	- Run updated controlfile command
+		[oracle@ninjadba dbs]$ sqlplus / as sysdba
+			SQL>CREATE CONTROLFILE SET DATABASE "TESTDB" RESETLOGS  ARCHIVELOG
+					MAXLOGFILES 16
+					MAXLOGMEMBERS 3
+					MAXDATAFILES 100
+					MAXINSTANCES 8
+					MAXLOGHISTORY 292
+				LOGFILE
+				  GROUP 1 '/u01/app/oracle/oradata/testdb/redo01.log'  SIZE 200M BLOCKSIZE 512,
+				  GROUP 2 '/u01/app/oracle/oradata/testdb/redo02.log'  SIZE 200M BLOCKSIZE 512,
+				  GROUP 3 '/u01/app/oracle/oradata/testdb/redo03.log'  SIZE 200M BLOCKSIZE 512
+				-- STANDBY LOGFILE
+				DATAFILE
+				  '/u01/app/oracle/oradata/testdb/system01.dbf',
+				  '/u01/app/oracle/oradata/testdb/sysaux01.dbf',
+				  '/u01/app/oracle/oradata/testdb/undotbs01.dbf',
+				  '/u01/app/oracle/oradata/testdb/users01.dbf'
+				CHARACTER SET AL32UTF8
+				;
+SQL> alter database open resetlogs;
