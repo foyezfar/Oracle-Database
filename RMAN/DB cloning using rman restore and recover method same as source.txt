@@ -13,7 +13,7 @@ Trigger backup on source
 Move files to the target server
 	1. The parameter file.
 		[oracle@foyezdba dbs]$ scp initorcl.ora oracle@192.168.0.101:$ORACLE_HOME/dbs
-		create a directory and copy controlfile, archivelog backup and archivelogs [same as source]
+		create a directory and copy controlfile, archivelog backup and archivelogs 
 	2. Create directories as per new pfile.
 		[oracle@ninjadba dbs]$ 
 	3. Restore Controlfile from RMAN backup
