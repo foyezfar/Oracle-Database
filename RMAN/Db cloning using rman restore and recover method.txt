@@ -51,6 +51,13 @@ Start the cloning
 		RMAN> startup mount;
 	2. Get the latest scn available in the archivelog backup
 		RMAN> list backup of archivelog all;
+		
+		  List of Archived Logs in backup set 3
+  Thrd Seq     Low SCN    Low Time  Next SCN   Next Time
+  ---- ------- ---------- --------- ---------- ---------
+  1    3       1424601    20-DEC-22 1424645    20-DEC-22   [Note Next SCN number]
+
+
 	3. Rename the DB redologfiles so that they can be created in new location
 		SQL> select member from v$logfile;
 		SQL> alter database rename file '/u01/app/oracle/oradata/orcl/redo01.log' to '/u01/app/oracle/oradata/testdb/redo01.log';
@@ -68,7 +75,7 @@ run {
     set newname for datafile   4 to '/u01/app/oracle/oradata/testdb/undotbs01.dbf';
 	restore database from tag TAG20221216T214916;
 	switch datafile all;
-	recover database until scn 1423277;          [from RMAN> list backup of archivelog all;]
+	recover database until scn 1424601;          [from RMAN> list backup of archivelog all;Next SCN]
 	alter database open resetlogs;
 }
 
@@ -100,7 +107,7 @@ Rename the Database
 	[oracle@ninjadba dbs]$ mv initorcl.ora inittestdb.ora -> [init(newdb name).ora]
 	[oracle@ninjadba dbs]$ vim inittestdb.ora
 		*.db_name='testdb'  ->  [change it to new db name]
-	[oracle@ninjadba dbs]$ export ORACLE_SID=TESTDB
+	[oracle@ninjadba dbs]$ export ORACLE_SID=testdb
 	
 3. Edit the controlfile in trace location with new SID
 [oracle@ninjadba testdb]$ cat /tmp/ctlfile.sql
@@ -131,6 +138,7 @@ Rename the Database
 		[oracle@ninjadba dbs]$ rm -rf /u01/app/oracle/oradata/testdb/control01.ctl /u01/app/oracle/fast_recovery_area/testdb/control02.ctl
 	- Run updated controlfile command
 		[oracle@ninjadba dbs]$ sqlplus / as sysdba
+		SQL> startup nomount;
 			SQL>CREATE CONTROLFILE SET DATABASE "TESTDB" RESETLOGS  ARCHIVELOG
 					MAXLOGFILES 16
 					MAXLOGMEMBERS 3
