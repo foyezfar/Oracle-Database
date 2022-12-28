@@ -338,10 +338,13 @@ RMAN> DUPLICATE TARGET DATABASE FOR STANDBY FROM ACTIVE DATABASE NOFILENAMECHECK
 
 
 Client Connectivity in Data Guard Configuration
+===============================================================================================================
+When you have a physical standby, you must make sure client connectivity is set properly so that when you perform failover or switchover, client must smoothly connect to the new primary.
+
 Create a database service on primary: This service is created on primary database to connect proddb
 
 exec DBMS_SERVICE.CREATE_SERVICE (service_name => 'prm_rw', network_name => 'prm_rw', failover_method => 'BASIC', failover_type => 'SELECT', failover_retries => 30, failover_delay => 10);
-
+ [ Note: service_name -> any name, _rw used to mean read write ]
 
 Make above service run only on primary:
 
@@ -352,9 +355,9 @@ v_role VARCHAR(30);
 begin
 select DATABASE_ROLE into v_role from V$DATABASE;
 if v_role = 'PRIMARY' then
-DBMS_SERVICE.START_SERVICE('prm');
+DBMS_SERVICE.START_SERVICE('prm_rw');
 else
-DBMS_SERVICE.STOP_SERVICE('prm');
+DBMS_SERVICE.STOP_SERVICE('prm_rw');
 end if;
 end;
 /
@@ -386,12 +389,20 @@ exec prm_rw_service;
 alter system switch logfile;
 
 
+D:\app\client\Foyez\product\12.2.0\client_1\network\admin
+=====
+Edit client tnsnames.ora: We need to enable client tns entries to access database via above service
 
-
-
-
-
-
+prm =
+  (DESCRIPTION =
+    (ADDRESS_LIST=
+      (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.101)(PORT = 1521))
+      (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.102)(PORT = 1521))
+    )
+   (CONNECT_DATA = (SERVICE_NAME = prm_rw)
+     (FAILOVER_MODE=(TYPE=SELECT)(METHOD=BASIC)(RETRIES=30)(DELAY=10))
+   )
+  )    
 
 
 
