@@ -13,3 +13,18 @@ On Secondary
 ==============================================
 alter database recover managed standby database cancel;
 shut immediate;
+
+
+On Secondary (Active DataGuard)
+==============================================
+SQL> alter database recover managed standby database cancel;
+
+Database altered.
+
+SQL> alter database open read only;
+
+Database altered.
+
+SQL> alter database recover managed standby database disconnect;
+
+Database altered.
