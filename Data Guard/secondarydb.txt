@@ -115,26 +115,24 @@ vim $ORACLE_HOME/network/admin/tnsnames.ora
 
 prm =
   (DESCRIPTION =
-    (ADDRESS_LIST =
-      (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.101)(PORT = 1521))
-    )
+    (ADDRESS = (PROTOCOL = TCP)(HOST = primary)(PORT = 1521))
     (CONNECT_DATA =
-      (SID = prm)
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = prm)
     )
   )
-
 sec =
   (DESCRIPTION =
-    (ADDRESS_LIST =
-      (ADDRESS = (PROTOCOL = TCP)(HOST = 192.168.0.102)(PORT = 1521))
-    )
+    (ADDRESS = (PROTOCOL = TCP)(HOST = secondary)(PORT = 1521))
     (CONNECT_DATA =
-      (SID = sec)
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = sec)
     )
   )
   
   
 Configure listener on standby.
+vi $ORACLE_HOME/network/admin/listener.ora
 LISTENER =
   (DESCRIPTION_LIST =
     (DESCRIPTION =
