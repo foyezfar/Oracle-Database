@@ -1,0 +1,213 @@
+========================================================
+Prerequisites
+========================================================
+#Install the below packages
+yum -y install oracle-database-server-12cR2-preinstall
+yum -y install oracleasm*
+yum -y install kmod-oracleasm*
+
+#Add below OS groups
+groupadd -g 54327 asmdba
+groupadd -g 54328 asmoper
+groupadd -g 54329 asmadmin
+
+#Add asmdba as secondary group to Oracle user
+usermod -a -G asmdba oracle
+
+#Create Grid User
+useradd -u 54331 -g oinstall -G dba,asmdba,asmoper,asmadmin,racdba grid
+
+#Change the password for Oracle and Grid user
+passwd oracle
+passwd grid
+
+#Create the Directories for Oracle Database installation
+mkdir -p /u01/app/oracle
+mkdir -p /u01/app/oracle/product/12.2.0/db_home
+chown -R oracle:oinstall /u01
+
+#Create the Directories for Oracle Grid installation
+mkdir -p /u01/app/grid
+mkdir -p /u01/app/grid/product/12.2.0/grid_home
+chown -R grid:oinstall /u01/app/grid
+chmod -R 775 /u01
+
+========================================================
+Configure Oracle ASM
+========================================================
+#Let us configure Oracle ASM
+oracleasm configure -i
+
+Default user to own the driver interface []: grid
+Default group to own the driver interface []: dba
+Start Oracle ASM library driver on boot (y/n) [n]: y
+Scan for Oracle ASM disks on boot (y/n): y
+Writing Oracle ASM library driver configuration: done
+
+#Load / initiate Oracle ASM
+oracleasm init
+
+Creating /dev/oracleasm mount point: /dev/oracleasm
+Loading module “oracleasm”: oracleasm
+Configuring “Oracleasm” to use device physical block size
+Mounting ASMlib driver filesystem: /dev/oracleasm
+
+
+Add 30 GB HDD to virtual machine which we will use to create 3 partitions of 10 GB each for our ASM disks. 
+Open Virtual machine >> Settings >> Storage >> Controller: SATA >> Create new disk
+
+Click Next >> Next >> Give size 30 GB >> Click on Create
+
+
+#Start virtual machine and login as root user to format the newly added disk
+fdisk -l
+------------------------------------------------------------------------
+Disk /dev/sdb: 32.2 GB, 32212254720 bytes, 62914560 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+------------------------------------------------------------------------
+
+#In the above output the /dev/sdb is not yet formatted. Let's create 3 partitions on sdb
+fdisk /dev/sdb
+
+n                        --> to create new partition
+<enter>
+<enter>
+<enter>
++10G
+
+n
+<enter>
+<enter>
+<enter>
++10G
+
+n
+<enter>
+<enter>
+<enter>
+<enter>
+
+w                        --> to save partition table
+
+------------------------------------------------------------------------
+fdisk -l
+   Device Boot      Start         End      Blocks   Id  System
+/dev/sdb1            2048    20973567    10485760   83  Linux
+/dev/sdb2        20973568    41945087    10485760   83  Linux
+/dev/sdb3        41945088    62914559    10484736   83  Linux
+------------------------------------------------------------------------
+
+#Create separate ASM Disk for each partition
+oracleasm createdisk CRS1 /dev/sdb1           [Cluster Ready Services - CRS]
+oracleasm createdisk DATA1 /dev/sdb2
+oracleasm createdisk FRA1 /dev/sdb3
+
+
+#To check asm disks
+oracleasm listdisks
+ls -lrt /dev/oracleasm/disks
+
+
+========================================================
+Install Grid Software
+========================================================
+#Edit Grid user Bash_Profile but take .bash_profile backup before editing it
+su - grid
+cp .bash_profile .bash_profile.orig
+vi .bash_profile
+
+#Paste below contents
+if [ -f ~/.bashrc ]; then
+. ~/.bashrc
+fi
+ORACLE_SID=+ASM; export ORACLE_SID
+ORACLE_BASE=/u01/app/grid; export ORACLE_BASE
+ORACLE_HOME=/u01/app/grid/product/12.2.0/grid_home; export ORACLE_HOME
+ORACLE_TERM=xterm; export ORACLE_TERM
+JAVA_HOME=/usr/bin/java; export JAVA_HOME
+TNS_ADMIN=$ORACLE_HOME/network/admin; export TNS_ADMIN
+
+PATH=.:${JAVA_HOME}/bin:${PATH}:$HOME/bin:$ORACLE_HOME/bin
+PATH=${PATH}:/usr/bin:/bin:/usr/local/bin
+export PATH
+
+umask 022
+
+
+#Save and close vi editor. Execute the bash profile and check the environment variables
+. .bash_profile
+env|grep ORA
+
+#Copy the 12cR2 grid software under grid home and unzip it
+cd $ORACLE_HOME
+unzip linuxx64_12201_grid_home.zip
+
+#Start the gridSetup.sh which will install grid software
+./gridSetup.sh
+
+path - /dev/oracleasm/disks/
+========================================================
+Configure ASM Diskgroups
+========================================================
+The grid installer allows you to only create one diskgroup (CRS). We need to start the asmca utility in order to create DATA 
+and FRA diskgroup which are required for database installation. Click on Create
+
+
+
+
+
+
+
+
+
+========================================================
+Install Oracle Software
+========================================================
+#Edit Oracle user bash profile and put below
+
+vi .bash_profile
+
+if [ -f ~/.bashrc ]; then
+. ~/.bashrc
+fi
+ORACLE_HOSTNAME=oracledb; export ORACLE_HOSTNAME
+ORACLE_SID=prod; export ORACLE_SID
+ORACLE_UNQNAME=prod; export ORACLE_UNQNAME
+ORACLE_BASE=/u01/app/oracle; export ORACLE_BASE
+ORACLE_HOME=/u01/app/oracle/product/12.2.0/db_home; export ORACLE_HOME
+ORACLE_TERM=xterm; export ORACLE_TERM
+
+JAVA_HOME=/usr/bin/java; export JAVA_HOME
+NLS_DATE_FORMAT="DD-MON-YYYY HH24:MI:SS"; export NLS_DATE_FORMAT
+TNS_ADMIN=$ORACLE_HOME/network/admin; export TNS_ADMIN
+PATH=.:${JAVA_HOME}/bin:${PATH}:$HOME/bin:$ORACLE_HOME/bin
+PATH=${PATH}:/usr/bin:/bin:/usr/local/bin
+export PATH
+
+LD_LIBRARY_PATH=$ORACLE_HOME/lib
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$ORACLE_HOME/oracm/lib
+LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib
+export LD_LIBRARY_PATH
+
+CLASSPATH=$ORACLE_HOME/JRE:$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib:$ORACLE_HOME/network/jlib
+export CLASSPATH
+
+TEMP=/tmp ;export TMP
+TMPDIR=$tmp ; export TMPDIR
+
+umask 022
+
+
+
+
+
+mkdir -p /u01/app/oracle/product/12.2.0/db_home
+mkdir -p /u01/app/grid/product/12.2.0/grid_home
+useradd -u 54331 -g oinstall -G dba grid
+chown -R grid:oinstall /u01
+chown -R oracle:oinstall /u01/app/oracle
+chmod -R 775 /u01
+
+https://www.support.dbagenesis.com/post/oracle-12c-installation-on-linux-with-asm
