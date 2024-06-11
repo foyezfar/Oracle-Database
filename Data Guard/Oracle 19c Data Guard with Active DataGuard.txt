@@ -248,7 +248,7 @@ SID_LIST_LISTENER =
       (SID_NAME = prod)
     )
     (SID_DESC =
-      (GLOBAL_DBNAME = prm_DGMGRL)
+      (GLOBAL_DBNAME = prod_DGMGRL)
       (ORACLE_HOME = /u01/app/oracle/product/19.0.0/dbhome_1)
       (SID_NAME = prod)
     )
